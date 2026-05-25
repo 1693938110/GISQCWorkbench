@@ -190,11 +190,11 @@ std::string LicenseManager::machineCode() {
 std::filesystem::path LicenseManager::localAppDataDirectory() {
 #ifdef _WIN32
     if (const char* appData = std::getenv("LOCALAPPDATA")) {
-        return std::filesystem::path(appData) / "GISQCWorkbench";
+        return std::filesystem::u8path(appData) / "GISQCWorkbench";
     }
 #endif
     if (const char* home = std::getenv("HOME")) {
-        return std::filesystem::path(home) / ".gisqc-workbench";
+        return std::filesystem::u8path(home) / ".gisqc-workbench";
     }
     return std::filesystem::current_path() / ".gisqc-workbench";
 }
@@ -210,10 +210,6 @@ std::filesystem::path LicenseManager::defaultLicensePath() {
         }
     }
 #endif
-    const auto cwdLicense = std::filesystem::current_path() / "license.dat";
-    if (std::filesystem::exists(cwdLicense)) {
-        return cwdLicense;
-    }
     return localAppDataDirectory() / "license.dat";
 }
 

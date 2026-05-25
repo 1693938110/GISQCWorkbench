@@ -37,7 +37,10 @@ namespace GISQCInstaller
                     return 0;
                 }
 
-                string defaultDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ProductId);
+                string existingDir = InstallerCore.ExistingInstallLocation();
+                string defaultDir = !string.IsNullOrWhiteSpace(existingDir)
+                    ? existingDir
+                    : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ProductId);
                 string installDir = args.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a) && !a.StartsWith("/")) ?? defaultDir;
                 if (args.Contains("/silent", StringComparer.OrdinalIgnoreCase) || args.Contains("/S", StringComparer.OrdinalIgnoreCase))
                 {
@@ -89,12 +92,14 @@ namespace GISQCInstaller
         readonly Button cancelButton = new Button();
         readonly ProgressBar progress = new ProgressBar();
         readonly CheckBox launchCheck = new CheckBox();
+        readonly string existingDir;
         int page = 0;
         bool installing = false;
 
         public InstallerWizard(string defaultDir)
         {
             this.defaultDir = defaultDir;
+            existingDir = InstallerCore.ExistingInstallLocation();
             Text = Program.ProductName + " 安装向导";
             Icon = Program.LoadAppIcon();
             StartPosition = FormStartPosition.CenterScreen;
@@ -135,7 +140,15 @@ namespace GISQCInstaller
             if (page == 0)
             {
                 title.Text = "欢迎使用安装向导";
-                body.Text = "本向导将把 " + Program.ProductName + " 安装到您的电脑。\r\n\r\n点击“下一步”继续，或点击“取消”退出安装。";
+                if (!string.IsNullOrWhiteSpace(existingDir))
+                {
+                    body.Text = "检测到本机已安装 " + Program.ProductName + "：\r\n" + existingDir +
+                                "\r\n\r\n继续安装将执行覆盖升级，并保留授权文件和用户数据。";
+                }
+                else
+                {
+                    body.Text = "本向导将把 " + Program.ProductName + " 安装到您的电脑。\r\n\r\n点击“下一步”继续，或点击“取消”退出安装。";
+                }
                 nextButton.Text = "下一步";
             }
             else if (page == 1)
@@ -197,6 +210,17 @@ namespace GISQCInstaller
 
         void BeginInstall()
         {
+            if (!string.IsNullOrWhiteSpace(existingDir) && Directory.Exists(existingDir))
+            {
+                var result = MessageBox.Show(this,
+                    "检测到已安装版本。\r\n\r\n安装程序将覆盖升级到：\r\n" + pathBox.Text +
+                    "\r\n\r\n授权文件会保留到用户目录。是否继续？",
+                    Text,
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question,
+                    MessageBoxDefaultButton.Button1);
+                if (result != DialogResult.Yes) return;
+            }
             page = 3; installing = true; Render();
             string targetPath = pathBox.Text;
             var worker = new Thread(() =>
@@ -222,6 +246,20 @@ namespace GISQCInstaller
 
     static class InstallerCore
     {
+        public static string ExistingInstallLocation()
+        {
+            try
+            {
+                using (var key = Registry.CurrentUser.OpenSubKey(Program.RegistryKeyPath))
+                {
+                    var value = key == null ? null : key.GetValue("InstallLocation") as string;
+                    if (!string.IsNullOrWhiteSpace(value)) return value;
+                }
+            }
+            catch { }
+            return null;
+        }
+
         public static void Install(string installDir, Action<string> status)
         {
             if (string.IsNullOrWhiteSpace(installDir)) throw new InvalidOperationException("安装路径不能为空。");
@@ -229,6 +267,7 @@ namespace GISQCInstaller
             if (status != null) status("正在准备安装目录：\r\n" + target);
             if (Directory.Exists(target))
             {
+                PreserveLicenseFile(target);
                 foreach (var file in Directory.GetFiles(target, "*", SearchOption.AllDirectories)) File.SetAttributes(file, FileAttributes.Normal);
                 Directory.Delete(target, true);
             }
@@ -380,6 +419,21 @@ namespace GISQCInstaller
         static string Quote(string value)
         {
             return "\"" + value.Replace("\"", "") + "\"";
+        }
+
+        static void PreserveLicenseFile(string installDir)
+        {
+            try
+            {
+                string oldLicense = Path.Combine(installDir, "license.dat");
+                if (!File.Exists(oldLicense)) return;
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string stateDir = Path.Combine(appData, Program.ProductId);
+                Directory.CreateDirectory(stateDir);
+                string newLicense = Path.Combine(stateDir, "license.dat");
+                if (!File.Exists(newLicense)) File.Copy(oldLicense, newLicense, true);
+            }
+            catch { }
         }
 
         static void ScheduleDirectoryRemoval(string installDir)

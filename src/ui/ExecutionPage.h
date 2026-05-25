@@ -32,6 +32,7 @@ private slots:
     void onSchemeChanged(int index);
     void runQualityCheck();
     void cancelQualityCheck();
+    void pauseResumeQualityCheck();
     void onWorkerProgress(int percent, const QString& message);
     void onWorkerFinished(const TaskSessionReport& report);
     void onWorkerError(const QString& errorMessage);
@@ -58,6 +59,7 @@ private:
     QProgressBar* progress_{};
     QPushButton* runButton_{};
     QPushButton* cancelButton_{};
+    QPushButton* pauseButton_{};
     QThread* workerThread_{};
     QualityCheckWorker* worker_{};
 };

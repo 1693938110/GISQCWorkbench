@@ -46,6 +46,13 @@ std::string formatElapsed(double seconds) {
 
 QualityCheckWorker::QualityCheckWorker(QObject* parent) : QObject(parent) {}
 
+void QualityCheckWorker::waitIfPaused() {
+    if (!paused_.load()) return;
+    emit progressChanged(-1, QString::fromUtf8("已暂停，等待恢复..."));
+    std::unique_lock<std::mutex> lock(pauseMutex_);
+    cv_.wait(lock, [this]() { return !paused_.load() || cancelled_.load(); });
+}
+
 void QualityCheckWorker::process() {
     const auto startTime = std::chrono::steady_clock::now();
     try {
@@ -94,6 +101,7 @@ void QualityCheckWorker::process() {
         // Execute rules one-by-one for cancel checks and per-rule progress
         RuleCheckEngine engine;
         for (int ri = 0; ri < totalRules; ++ri) {
+            waitIfPaused();
             if (cancelled_.load()) { emit cancelled(); return; }
 
             const int pct = 30 + (ri * 55) / std::max(totalRules, 1);

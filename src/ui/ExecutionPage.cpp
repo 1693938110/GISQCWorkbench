@@ -96,6 +96,10 @@ ExecutionPage::ExecutionPage(QWidget* parent) : QWidget(parent) {
     runButton_->setObjectName("PrimaryButton");
     connect(runButton_, &QPushButton::clicked, this, &ExecutionPage::runQualityCheck);
     pathRow->addWidget(runButton_);
+    pauseButton_ = new QPushButton("暂停", setupCard);
+    pauseButton_->setEnabled(false);
+    connect(pauseButton_, &QPushButton::clicked, this, &ExecutionPage::pauseResumeQualityCheck);
+    pathRow->addWidget(pauseButton_);
     cancelButton_ = new QPushButton("取消", setupCard);
     cancelButton_->setEnabled(false);
     connect(cancelButton_, &QPushButton::clicked, this, &ExecutionPage::cancelQualityCheck);
@@ -228,12 +232,26 @@ void ExecutionPage::cancelQualityCheck() {
     if (worker_) {
         worker_->requestCancel();
         if (cancelButton_) cancelButton_->setEnabled(false);
+        if (pauseButton_) pauseButton_->setEnabled(false);
         appendLog("正在取消质检任务...");
     }
 }
 
+void ExecutionPage::pauseResumeQualityCheck() {
+    if (!worker_) return;
+    if (worker_->isPaused()) {
+        worker_->resume();
+        if (pauseButton_) pauseButton_->setText("暂停");
+        appendLog("质检任务已恢复。");
+    } else {
+        worker_->requestPause();
+        if (pauseButton_) pauseButton_->setText("恢复");
+        appendLog("质检任务暂停中...");
+    }
+}
+
 void ExecutionPage::onWorkerProgress(int percent, const QString& message) {
-    progress_->setValue(percent);
+    if (percent >= 0) progress_->setValue(percent);
     appendLog(message);
 }
 
@@ -258,6 +276,10 @@ void ExecutionPage::onWorkerError(const QString& errorMessage) {
 void ExecutionPage::setRunning(bool running) {
     if (runButton_) runButton_->setEnabled(!running);
     if (cancelButton_) cancelButton_->setEnabled(running);
+    if (pauseButton_) {
+        pauseButton_->setEnabled(running);
+        pauseButton_->setText("暂停");
+    }
     if (taskNameEdit_) taskNameEdit_->setEnabled(!running);
     if (projectCombo_) projectCombo_->setEnabled(!running);
     if (schemeCombo_) schemeCombo_->setEnabled(!running);

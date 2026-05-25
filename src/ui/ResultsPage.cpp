@@ -184,15 +184,15 @@ ResultsPage::ResultsPage(QWidget* parent) : QWidget(parent) {
     openResultDirButton_->setToolTip("在资源管理器中打开最近一次导出目录");
     connect(openResultDirButton_, &QPushButton::clicked, this, &ResultsPage::openResultDirectory);
     exports->addWidget(openResultDirButton_);
+    exportPackageButton_ = new QPushButton("一键导出全部", this);
+    exportPackageButton_->setObjectName("PrimaryButton");
+    exportPackageButton_->setToolTip("一键导出 CSV + Excel + Word + HTML 结果包到指定目录");
+    connect(exportPackageButton_, &QPushButton::clicked, this, &ResultsPage::exportResultPackage);
+    exports->addWidget(exportPackageButton_);
     exports->addStretch();
-
-    // Hidden buttons — keep functionality but not shown by default
     exportHtmlButton_ = new QPushButton("导出 HTML", this);
     exportHtmlButton_->hide();
     connect(exportHtmlButton_, &QPushButton::clicked, this, &ResultsPage::exportHtmlReport);
-    exportPackageButton_ = new QPushButton("一键导出", this);
-    exportPackageButton_->hide();
-    connect(exportPackageButton_, &QPushButton::clicked, this, &ResultsPage::exportResultPackage);
 
     layout->addLayout(exports);
 

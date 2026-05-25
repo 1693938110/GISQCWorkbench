@@ -10,6 +10,7 @@
 #include <QLineEdit>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QSettings>
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QTextEdit>
@@ -41,9 +42,13 @@ DashboardPage::DashboardPage(QWidget* parent) : QWidget(parent) {
     auto* pathLayout = qobject_cast<QVBoxLayout*>(pathCard->layout());
     auto* pathRow = new QHBoxLayout();
     pathRow->setSpacing(10);
-    pathEdit_ = new QLineEdit(pathCard);
-    pathEdit_->setPlaceholderText("选择包含 FileGDB、Shapefile 或 GeoPackage 的成果目录");
-    pathRow->addWidget(pathEdit_, 1);
+    pathCombo_ = new QComboBox(pathCard);
+    pathCombo_->setEditable(true);
+    pathCombo_->setInsertPolicy(QComboBox::NoInsert);
+    pathCombo_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    pathCombo_->lineEdit()->setPlaceholderText("选择包含 FileGDB、Shapefile 或 GeoPackage 的成果目录");
+    pathRow->addWidget(pathCombo_, 1);
+    loadHistory();
     auto* browseButton = new QPushButton("浏览...", pathCard);
     browseButton->setToolTip("打开文件浏览器选择成果目录");
     connect(browseButton, &QPushButton::clicked, this, &DashboardPage::chooseDatasetPath);
@@ -122,15 +127,20 @@ DashboardPage::DashboardPage(QWidget* parent) : QWidget(parent) {
 }
 
 void DashboardPage::setDatasetPath(const QString& path) {
-    if (pathEdit_) {
-        pathEdit_->setText(path);
+    if (pathCombo_ && !path.isEmpty()) {
+        if (pathCombo_->findText(path) < 0) {
+            pathCombo_->insertItem(0, path);
+            saveHistory();
+        }
+        pathCombo_->setCurrentText(path);
     }
 }
 
 void DashboardPage::chooseDatasetPath() {
-    const QString dir = QFileDialog::getExistingDirectory(this, "选择成果目录", pathEdit_->text());
+    const QString current = pathCombo_ ? pathCombo_->currentText() : "";
+    const QString dir = QFileDialog::getExistingDirectory(this, "选择成果目录", current);
     if (!dir.isEmpty()) {
-        pathEdit_->setText(dir);
+        setDatasetPath(dir);
         emit datasetPathChanged(dir);
         appendLog("已选择成果目录：" + dir);
         scanCurrentPath();
@@ -138,12 +148,14 @@ void DashboardPage::chooseDatasetPath() {
 }
 
 void DashboardPage::scanCurrentPath() {
-    const QString inputPath = pathEdit_->text().trimmed();
+    const QString inputPath = pathCombo_ ? pathCombo_->currentText().trimmed() : "";
     if (inputPath.isEmpty()) {
         appendLog("请先选择成果目录。");
         progress_->setValue(0);
         return;
     }
+    // Ensure current path is in history
+    setDatasetPath(inputPath);
     emit datasetPathChanged(inputPath);
 
     DatasetScanService service;
@@ -231,6 +243,28 @@ void DashboardPage::renderScanSummary(const DatasetScanSummary& summary) {
         .arg(crsKnownCount)
         .arg(static_cast<int>(summary.rows.size()))
         .arg(statusText));
+}
+
+void DashboardPage::loadHistory() {
+    if (!pathCombo_) return;
+    QSettings settings("GISQC", "Workbench");
+    const QStringList history = settings.value("dataImport/history").toStringList();
+    pathCombo_->clear();
+    for (const auto& p : history) {
+        if (!p.isEmpty()) pathCombo_->addItem(p);
+    }
+    if (pathCombo_->count() > 0) pathCombo_->setCurrentIndex(0);
+}
+
+void DashboardPage::saveHistory() {
+    if (!pathCombo_) return;
+    QStringList history;
+    const int maxHistory = 20;
+    for (int i = 0; i < std::min(pathCombo_->count(), maxHistory); ++i) {
+        history.append(pathCombo_->itemText(i));
+    }
+    QSettings settings("GISQC", "Workbench");
+    settings.setValue("dataImport/history", history);
 }
 
 } // namespace gisqc

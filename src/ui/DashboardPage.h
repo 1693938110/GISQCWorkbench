@@ -1,7 +1,7 @@
 #pragma once
 
+#include <QComboBox>
 #include <QLabel>
-#include <QLineEdit>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QTableWidget>
@@ -31,8 +31,10 @@ private slots:
 private:
     void appendLog(const QString& message);
     void renderScanSummary(const DatasetScanSummary& summary);
+    void loadHistory();
+    void saveHistory();
 
-    QLineEdit* pathEdit_{};
+    QComboBox* pathCombo_{};
     QLabel* summaryLabel_{};
     QTableWidget* layerTable_{};
     QTextEdit* localLog_{};

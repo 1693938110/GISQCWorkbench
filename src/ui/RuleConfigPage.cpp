@@ -21,6 +21,7 @@
 #include <QStringList>
 #include <QTableWidgetItem>
 
+#include <filesystem>
 #include <set>
 #include <QTreeWidget>
 #include <QVBoxLayout>
@@ -139,13 +140,11 @@ RuleConfigPage::RuleConfigPage(QWidget* parent) : QWidget(parent) {
     projectCombo_->setMinimumWidth(140);
     connect(projectCombo_, QOverload<int>::of(&QComboBox::activated), this, &RuleConfigPage::onProjectChanged);
     toolbar->addWidget(projectCombo_);
-    auto* newProjBtn = new QPushButton("+", this);
-    newProjBtn->setFixedWidth(28);
+    auto* newProjBtn = new QPushButton(QStringLiteral("\u65b0\u5efa"), this);
     newProjBtn->setToolTip(QStringLiteral("\u65b0\u5efa\u9879\u76ee"));
     connect(newProjBtn, &QPushButton::clicked, this, &RuleConfigPage::newProject);
     toolbar->addWidget(newProjBtn);
-    auto* delProjBtn = new QPushButton("\u2212", this);
-    delProjBtn->setFixedWidth(28);
+    auto* delProjBtn = new QPushButton(QStringLiteral("\u5220\u9664"), this);
     delProjBtn->setToolTip(QStringLiteral("\u5220\u9664\u9879\u76ee"));
     connect(delProjBtn, &QPushButton::clicked, this, &RuleConfigPage::deleteProject);
     toolbar->addWidget(delProjBtn);
@@ -334,7 +333,16 @@ void RuleConfigPage::loadMasterRules() {
 
 void RuleConfigPage::loadScheme() {
     RuleTemplateStore store;
-    scheme_ = store.loadActive();
+    const auto userPath = store.userTemplatePath();
+    if (!userPath.empty() && std::filesystem::exists(std::filesystem::u8path(userPath))) {
+        scheme_ = store.loadActive();
+    } else {
+        // First launch: start with empty scheme, user adds rules manually
+        scheme_ = {};
+        scheme_.templateName = "";
+        scheme_.templateCode = "GIS_QC_USER_NEW";
+        scheme_.globalTolerance = "0.001";
+    }
     if (toleranceEdit_) {
         toleranceEdit_->setText(QString::fromStdString(
             scheme_.globalTolerance.empty() ? "0.001" : scheme_.globalTolerance));
@@ -463,7 +471,7 @@ void RuleConfigPage::saveScheme() {
 
         const QString dir = currentProjectDir();
         QDir().mkpath(dir);
-        const std::string libPath = (dir + "/" + name + ".json").toStdString();
+        const std::string libPath = (dir + "/" + name + ".json").toUtf8().constData();
         RuleTemplateStore::saveToFile(scheme_, libPath);
 
         // Refresh combo without triggering loadSelectedScheme, then re-select
@@ -600,7 +608,7 @@ void RuleConfigPage::loadSelectedScheme() {
 
     try {
         RuleTemplateLoader loader;
-        scheme_ = loader.loadFromFile(path.toStdString());
+        scheme_ = loader.loadFromFile(path.toUtf8().constData());
         if (toleranceEdit_) toleranceEdit_->setText(QString::fromStdString(
             scheme_.globalTolerance.empty() ? "0.001" : scheme_.globalTolerance));
         if (dataSourceCombo_) {

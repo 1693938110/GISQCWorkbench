@@ -51,7 +51,7 @@ std::string RuleTemplateStore::defaultTemplatePath() const {
 
 std::string RuleTemplateStore::userTemplatePath() const {
     const fs::path current = fs::current_path() / "data" / "templates" / "user_rules.json";
-    return current.string();
+    return current.u8string();
 }
 
 std::string RuleTemplateStore::toJson(const RuleTemplate& templ) {
@@ -120,13 +120,13 @@ std::string RuleTemplateStore::toJson(const RuleTemplate& templ) {
 }
 
 void RuleTemplateStore::saveToFile(const RuleTemplate& templ, const std::string& path) {
-    const fs::path target(path);
+    const fs::path target = fs::u8path(path);
     if (target.has_parent_path()) {
         fs::create_directories(target.parent_path());
     }
     std::ofstream out(target, std::ios::binary | std::ios::trunc);
     if (!out) {
-        throw std::runtime_error("无法写入内部规则配置：" + path);
+        throw std::runtime_error("Cannot write rule config: " + path);
     }
     out << toJson(templ);
 }

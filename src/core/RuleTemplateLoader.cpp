@@ -1,5 +1,6 @@
 #include "RuleTemplateLoader.h"
 
+#include <filesystem>
 #include <fstream>
 #include <regex>
 #include <sstream>
@@ -17,9 +18,9 @@ const RuleDefinition* RuleTemplate::findRule(const std::string& code) const {
 }
 
 RuleTemplate RuleTemplateLoader::loadFromFile(const std::string& path) const {
-    std::ifstream input(path);
+    std::ifstream input(std::filesystem::u8path(path));
     if (!input) {
-        throw std::runtime_error("无法打开规则模板文件：" + path);
+        throw std::runtime_error("Cannot open rule template: " + path);
     }
     std::ostringstream buffer;
     buffer << input.rdbuf();

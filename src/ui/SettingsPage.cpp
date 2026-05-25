@@ -4,6 +4,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QFileInfo>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -46,19 +47,33 @@ SettingsPage::SettingsPage(QWidget* parent) : QWidget(parent) {
     gdalStatus = "已加载";
 #endif
 
+    const QString appDir = QCoreApplication::applicationDirPath();
+    auto detectLib = [&](const QStringList& candidates) -> QString {
+        for (const auto& name : candidates) {
+            if (QFileInfo::exists(appDir + "/" + name)) return "已加载";
+        }
+        return "未检测到";
+    };
+    const QString geosStatus = detectLib({"geos_c.dll", "geos.dll"});
+    const QString projStatus = detectLib({"proj_9.dll", "proj.dll"});
+    const QString sqliteStatus = detectLib({"sqlite3.dll"});
+
     envLabel_->setText(
         QString("操作系统：%1 %2\n"
                 "CPU 架构：%3\n"
                 "Qt 版本：%4\n\n"
                 "GDAL：%5\n"
-                "GEOS：待集成\n"
-                "PROJ：待集成\n"
-                "SQLite：待集成")
+                "GEOS：%6\n"
+                "PROJ：%7\n"
+                "SQLite：%8")
             .arg(QSysInfo::prettyProductName(),
                  QSysInfo::kernelVersion(),
                  QSysInfo::currentCpuArchitecture(),
                  qVersion(),
-                 gdalStatus));
+                 gdalStatus,
+                 geosStatus,
+                 projStatus,
+                 sqliteStatus));
     envLayout->addWidget(envLabel_);
     envLayout->addStretch();
     layout->addWidget(envCard);

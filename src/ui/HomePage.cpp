@@ -88,9 +88,6 @@ HomePage::HomePage(QWidget* parent) : QWidget(parent) {
     auto* welcomeTitle = new QLabel("欢迎使用 GIS 数据质检工作台", banner);
     welcomeTitle->setObjectName("WelcomeTitle");
     bannerLayout->addWidget(welcomeTitle);
-    auto* welcomeSub = new QLabel("面向 Win10+ 的专业 GIS 数据质量检查桌面客户端", banner);
-    welcomeSub->setObjectName("WelcomeSubtitle");
-    bannerLayout->addWidget(welcomeSub);
     layout->addWidget(banner);
 
     // ---- Band 2: Stats row ----

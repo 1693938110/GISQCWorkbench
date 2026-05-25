@@ -4,6 +4,8 @@ build_*/
 
 # Dist / packaging outputs
 dist/
+!dist/installer_build/
+!dist/installer_build/**
 *.zip
 
 # Object files

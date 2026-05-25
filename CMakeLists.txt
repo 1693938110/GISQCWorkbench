@@ -37,6 +37,9 @@ add_library(gisqc_core
     src/core/LicenseManager.cpp
 )
 target_include_directories(gisqc_core PUBLIC src)
+if(WIN32)
+    target_link_libraries(gisqc_core PUBLIC Advapi32)
+endif()
 if(GDAL_FOUND)
     target_compile_definitions(gisqc_core PUBLIC GISQC_HAVE_GDAL)
     target_link_libraries(gisqc_core PUBLIC GDAL::GDAL)

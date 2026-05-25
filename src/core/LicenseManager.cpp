@@ -87,6 +87,65 @@ int toInt(const std::string& value, int defaultValue = 0) {
     }
 }
 
+constexpr const char* RegistryStateKey = "Software\\GISQC\\WorkbenchState";
+constexpr const char* StateIntegritySecret = "GISQC-STATE-INTEGRITY-2026-NOT-CLIENT";
+
+std::string stateChecksum(const std::string& machineCode, int usedRuns) {
+    std::string payload = machineCode + "|" + std::to_string(usedRuns) + "|" + StateIntegritySecret;
+    std::uint64_t hash = 14695981039346656037ull;
+    for (unsigned char c : payload) { hash ^= c; hash *= 1099511628211ull; }
+    std::ostringstream ss;
+    ss << std::uppercase << std::hex << std::setw(16) << std::setfill('0') << hash;
+    return ss.str();
+}
+
+#ifdef _WIN32
+int readStateFromRegistry(const std::string& machineCode) {
+    HKEY hKey = nullptr;
+    if (RegOpenKeyExA(HKEY_CURRENT_USER, RegistryStateKey, 0, KEY_READ, &hKey) != ERROR_SUCCESS) return 0;
+    auto closeKey = [&]() { if (hKey) RegCloseKey(hKey); };
+
+    DWORD runsDword = 0;
+    DWORD size = sizeof(runsDword);
+    if (RegQueryValueExA(hKey, "UsedRuns", nullptr, nullptr, reinterpret_cast<LPBYTE>(&runsDword), &size) != ERROR_SUCCESS) {
+        closeKey(); return 0;
+    }
+
+    char checksumBuf[64]{};
+    DWORD checksumSize = sizeof(checksumBuf);
+    if (RegQueryValueExA(hKey, "StateHash", nullptr, nullptr, reinterpret_cast<LPBYTE>(checksumBuf), &checksumSize) != ERROR_SUCCESS) {
+        closeKey(); return 0;
+    }
+    closeKey();
+
+    const int usedRuns = static_cast<int>(runsDword);
+    const std::string storedHash(checksumBuf);
+    const std::string expectedHash = stateChecksum(machineCode, usedRuns);
+    if (storedHash != expectedHash) return 0; // tampered
+    return usedRuns;
+}
+
+void writeStateToRegistry(const std::string& machineCode, int usedRuns) {
+    HKEY hKey = nullptr;
+    DWORD disposition = 0;
+    if (RegCreateKeyExA(HKEY_CURRENT_USER, RegistryStateKey, 0, nullptr, 0, KEY_WRITE, nullptr, &hKey, &disposition) != ERROR_SUCCESS) return;
+
+    DWORD runsDword = static_cast<DWORD>(usedRuns);
+    RegSetValueExA(hKey, "UsedRuns", 0, REG_DWORD, reinterpret_cast<const BYTE*>(&runsDword), sizeof(runsDword));
+
+    const std::string hash = stateChecksum(machineCode, usedRuns);
+    RegSetValueExA(hKey, "StateHash", 0, REG_SZ, reinterpret_cast<const BYTE*>(hash.c_str()), static_cast<DWORD>(hash.size() + 1));
+
+    const auto date = LicenseManager::currentDate();
+    RegSetValueExA(hKey, "LastRun", 0, REG_SZ, reinterpret_cast<const BYTE*>(date.c_str()), static_cast<DWORD>(date.size() + 1));
+
+    RegCloseKey(hKey);
+}
+#else
+int readStateFromRegistry(const std::string&) { return 0; }
+void writeStateToRegistry(const std::string&, int) {}
+#endif
+
 std::string userMachineSeed() {
 #ifdef _WIN32
     char computer[MAX_COMPUTERNAME_LENGTH + 1]{};
@@ -275,11 +334,15 @@ LicenseStatus LicenseManager::check(const std::filesystem::path& licensePath,
         return status;
     }
 
-    const auto stateText = readTextFile(statePath);
-    const auto state = parseKeyValues(stateText);
-    int usedRuns = 0;
-    if (auto it = state.find("usedRuns"); it != state.end()) {
-        usedRuns = toInt(it->second);
+    // Read run state from registry (with integrity check)
+    int usedRuns = readStateFromRegistry(status.license.machineCode);
+    // Fallback: also read legacy file state (migration)
+    if (usedRuns <= 0) {
+        const auto stateText = readTextFile(statePath);
+        const auto state = parseKeyValues(stateText);
+        if (auto it = state.find("usedRuns"); it != state.end()) {
+            usedRuns = toInt(it->second);
+        }
     }
     status.license.usedRuns = usedRuns;
 
@@ -291,6 +354,8 @@ LicenseStatus LicenseManager::check(const std::filesystem::path& licensePath,
 
     if (consumeRun) {
         ++usedRuns;
+        writeStateToRegistry(status.license.machineCode, usedRuns);
+        // Also write legacy file for backwards compat
         std::ostringstream ss;
         ss << "machineCode=" << status.license.machineCode << '\n'
            << "usedRuns=" << usedRuns << '\n'

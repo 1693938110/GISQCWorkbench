@@ -18,6 +18,7 @@ class RuleConfigPage : public QWidget {
     Q_OBJECT
 public:
     explicit RuleConfigPage(QWidget* parent = nullptr);
+    void setDatasetPath(const QString& path);
 
 private slots:
     void newProject();

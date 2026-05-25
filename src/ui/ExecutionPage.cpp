@@ -183,11 +183,11 @@ void ExecutionPage::runQualityCheck() {
         if (!schemePath.isEmpty() && QFile::exists(schemePath)) {
             RuleTemplateLoader loader;
             templ = loader.loadFromFile(schemePath.toStdString());
-            appendLog("加载方案：" + schemeCombo_->currentText() + " (" + schemePath + ")");
+            appendLog("加载方案：" + schemeCombo_->currentText());
         } else {
             RuleTemplateStore store;
             templ = store.loadActive();
-            appendLog("加载内部规则配置：" + QString::fromStdString(store.activeTemplatePath()));
+            appendLog("加载内置规则配置");
         }
 
         setRunning(true);

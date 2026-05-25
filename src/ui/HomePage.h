@@ -18,6 +18,9 @@ signals:
     void requestResults();
     void requestTemplateManage();
 
+public:
+    void refreshData();
+
 private:
     void renderStats();
     void renderRecentTasks();

@@ -49,7 +49,8 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 
     homePage_ = new HomePage(content);
     auto* dataImportPage = new DashboardPage(content);
-    auto* ruleConfigPage = new RuleConfigPage(content);
+    ruleConfigPage_ = new RuleConfigPage(content);
+    auto* ruleConfigPage = ruleConfigPage_;
     executionPage_ = new ExecutionPage(content);
     resultsPage_ = new ResultsPage(content);
     auto* templatePage = new TemplateManagePage(content);
@@ -203,6 +204,10 @@ void MainWindow::switchPage(int index) {
     }
     pages_->setCurrentIndex(index);
     updateHeaderForPage(index);
+    // Refresh HomePage stats when returning to it
+    if (index == 0 && homePage_) {
+        homePage_->refreshData();
+    }
 }
 
 void MainWindow::updateHeaderForPage(int index) {
@@ -233,6 +238,9 @@ void MainWindow::rememberDatasetPath(const QString& path) {
     currentDatasetPath_ = path;
     if (executionPage_) {
         executionPage_->setDatasetPath(path);
+    }
+    if (ruleConfigPage_) {
+        ruleConfigPage_->setDatasetPath(path);
     }
 }
 

@@ -164,6 +164,11 @@ HomePage::HomePage(QWidget* parent) : QWidget(parent) {
     renderRecentTasks();
 }
 
+void HomePage::refreshData() {
+    renderStats();
+    renderRecentTasks();
+}
+
 void HomePage::renderStats() {
     TaskHistoryStore store;
     const auto allRecords = store.all();

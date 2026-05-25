@@ -14,6 +14,7 @@ namespace gisqc {
 struct TaskSessionReport;
 class HomePage;
 class DashboardPage;
+class RuleConfigPage;
 class ExecutionPage;
 class ResultsPage;
 
@@ -40,6 +41,7 @@ private:
     QListWidget* navList_{};
     QStackedWidget* pages_{};
     HomePage* homePage_{};
+    RuleConfigPage* ruleConfigPage_{};
     ExecutionPage* executionPage_{};
     ResultsPage* resultsPage_{};
     QLabel* pageTitle_{};

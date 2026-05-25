@@ -311,6 +311,15 @@ RuleConfigPage::RuleConfigPage(QWidget* parent) : QWidget(parent) {
     refreshSchemeTable();
 }
 
+void RuleConfigPage::setDatasetPath(const QString& path) {
+    if (path.isEmpty() || !dataSourceCombo_) return;
+    if (dataSourceCombo_->findText(path) < 0) {
+        dataSourceCombo_->addItem(path);
+    }
+    dataSourceCombo_->setCurrentText(path);
+    reloadLayerNames();
+}
+
 // ---- Data loading ----
 
 void RuleConfigPage::loadMasterRules() {
@@ -453,10 +462,12 @@ void RuleConfigPage::saveScheme() {
         const std::string libPath = (dir + "/" + name + ".json").toStdString();
         RuleTemplateStore::saveToFile(scheme_, libPath);
 
-        // Refresh combo without triggering loadSelectedScheme
+        // Refresh combo without triggering loadSelectedScheme, then re-select
         const bool blocked = schemeCombo_->signalsBlocked();
         schemeCombo_->blockSignals(true);
         refreshSchemeLibrary();
+        const int savedIdx = schemeCombo_->findText(name);
+        if (savedIdx >= 0) schemeCombo_->setCurrentIndex(savedIdx);
         schemeCombo_->blockSignals(blocked);
 
         // Inline feedback instead of QMessageBox to avoid window jitter
@@ -522,7 +533,12 @@ void RuleConfigPage::onProjectChanged() {
         schemeCombo_->setCurrentIndex(0);
         loadSelectedScheme();
     } else {
-        newScheme();
+        // Clear the view instead of popping up a dialog
+        scheme_.rules.clear();
+        scheme_.templateCode = "GIS_QC_USER_NEW";
+        scheme_.templateName = "";
+        refreshSchemeTable();
+        refreshAvailableTable();
     }
 }
 

@@ -22,6 +22,7 @@ public:
     explicit ExecutionPage(QWidget* parent = nullptr);
     ~ExecutionPage() override;
     void setDatasetPath(const QString& path);
+    void refreshSchemes();
 
 signals:
     void logMessage(const QString& message);

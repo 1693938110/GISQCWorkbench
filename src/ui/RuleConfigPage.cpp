@@ -427,8 +427,36 @@ void RuleConfigPage::newScheme() {
     if (!ok || name.trimmed().isEmpty()) return;
 
     scheme_.rules.clear();
-    scheme_.templateCode = "GIS_QC_USER_NEW";
+    scheme_.templateCode = "GIS_QC_INTERNAL_USER";
     scheme_.templateName = name.trimmed().toStdString();
+    if (toleranceEdit_) {
+        scheme_.globalTolerance = toleranceEdit_->text().trimmed().toStdString();
+    }
+    if (dataSourceCombo_) {
+        scheme_.dataSourcePath = dataSourceCombo_->currentText().trimmed().toStdString();
+    }
+
+    // Auto-save to disk so the new scheme appears in combo and ExecutionPage
+    try {
+        const QString dir = currentProjectDir();
+        QDir().mkpath(dir);
+        const std::string libPath = (dir + "/" + name.trimmed() + ".json").toUtf8().constData();
+        RuleTemplateStore::saveToFile(scheme_, libPath);
+
+        RuleTemplateStore store;
+        store.saveUserTemplate(scheme_);
+    } catch (const std::exception& ex) {
+        QMessageBox::warning(this, QStringLiteral("\u4fdd\u5b58\u5931\u8d25"), QString::fromUtf8(ex.what()));
+    }
+
+    // Refresh combo without triggering loadSelectedScheme
+    const bool blocked = schemeCombo_->signalsBlocked();
+    schemeCombo_->blockSignals(true);
+    refreshSchemeLibrary();
+    const int idx = schemeCombo_->findText(name.trimmed());
+    if (idx >= 0) schemeCombo_->setCurrentIndex(idx);
+    schemeCombo_->blockSignals(blocked);
+
     refreshSchemeTable();
     refreshAvailableTable();
 }
@@ -866,6 +894,16 @@ void RuleConfigPage::updateDetailPanel() {
                     if (!found) combo->setCurrentText(qval);
                 }
             }
+            paramForm_->addRow(friendlyParamLabel(key), combo);
+
+        } else if (key == "unit") {
+            // ---- Unit selector (single-select dropdown) ----
+            auto* combo = new QComboBox(paramPanel_);
+            combo->setObjectName(qkey);
+            combo->addItems({QStringLiteral("m"), QStringLiteral("\u5ea6")});
+            const int unitIdx = combo->findText(qval);
+            if (unitIdx >= 0) combo->setCurrentIndex(unitIdx);
+            else if (!qval.isEmpty()) { combo->addItem(qval); combo->setCurrentIndex(combo->count() - 1); }
             paramForm_->addRow(friendlyParamLabel(key), combo);
 
         } else if (key == "templateDir") {

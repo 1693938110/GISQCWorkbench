@@ -228,6 +228,7 @@
           "severity": "warning",
           "parameters": {
             "minLength": "0.001",
+            "unit": "m",
             "layers": ""
           },
           "message": "线图层不能存在长度小于阈值的线段。默认阈值0.001m。"
@@ -240,6 +241,7 @@
           "severity": "warning",
           "parameters": {
             "minEdgeLength": "0.001",
+            "unit": "m",
             "layers": ""
           },
           "message": "面的边界不能存在长度小于阈值的线段。默认阈值0.001m。"

@@ -202,6 +202,10 @@ void MainWindow::switchPage(int index) {
     if (index == 0 && homePage_) {
         homePage_->refreshData();
     }
+    // Refresh ExecutionPage schemes when entering that page
+    if (index == 3 && executionPage_) {
+        executionPage_->refreshSchemes();
+    }
 }
 
 void MainWindow::updateHeaderForPage(int index) {

@@ -157,6 +157,11 @@ ExecutionPage::ExecutionPage(QWidget* parent) : QWidget(parent) {
     appendLog("就绪，选择项目和方案后点击【开始执行质检】。");
 }
 
+void ExecutionPage::refreshSchemes() {
+    refreshProjectList();
+    refreshSchemeList();
+}
+
 void ExecutionPage::setDatasetPath(const QString& path) {
     if (!path.isEmpty() && pathLabel_) {
         pathLabel_->setText(path);

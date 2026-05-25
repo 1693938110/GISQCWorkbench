@@ -1,0 +1,830 @@
+﻿{
+  "templateCode": "GIS_QC_STANDARD_V2",
+  "templateName": "GIS数据通用标准化质量检查 V2.0",
+  "source": "依据设计方案和FME工作流迁移的桌面端内置默认模板，运行配置在软件内部维护",
+  "categories": [
+    {
+      "code": "A",
+      "name": "成果完整性",
+      "rules": [
+        {
+          "code": "A010101",
+          "name": "目录应可正常读取且层级数量符合要求",
+          "object": "成果目录",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "minLevelCount": "4"
+          },
+          "message": "目录无法正常读取或层级数量不符合要求"
+        },
+        {
+          "code": "A010102",
+          "name": "目录名称应匹配对应层级命名要求",
+          "object": "成果目录",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "rootNameRegex": "^[A-Za-z0-9_.-]+$"
+          },
+          "message": "目录名称未匹配到对应层级下的命名要求"
+        },
+        {
+          "code": "A010103",
+          "name": "必选目录或文件不得缺失",
+          "object": "成果目录",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "requiredFolders": "空间数据,文档资料,元数据",
+            "requiredPaths": ""
+          },
+          "message": "缺失必选目录或文件"
+        },
+        {
+          "code": "A010104",
+          "name": "必交付文件不得缺失",
+          "object": "成果目录",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "requiredFiles": "metadata.xml,readme.txt"
+          },
+          "message": "缺少必交付文件"
+        },
+        {
+          "code": "A010201",
+          "name": "成果目录必须包含可识别 GIS 数据入口",
+          "object": "成果目录",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "requiredDataSource": "true"
+          },
+          "message": "未发现 FileGDB、Shapefile 或 GeoPackage 数据入口"
+        },
+        {
+          "code": "A010301",
+          "name": "成果目录不得包含空目录",
+          "object": "成果目录",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "scanEmptyFolders": "true"
+          },
+          "message": "发现空目录"
+        },
+        {
+          "code": "A010302",
+          "name": "成果文件命名应符合规范",
+          "object": "成果文件",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "fileNameRegex": "^[A-Za-z0-9_.-]+$"
+          },
+          "message": "文件命名不符合规范"
+        },
+        {
+          "code": "A010303",
+          "name": "Shapefile 配套文件必须完整",
+          "object": "Shapefile",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "checkShapefileSidecars": "true"
+          },
+          "message": "Shapefile 缺少配套文件"
+        },
+        {
+          "code": "A020101",
+          "name": "文件应可正常读取",
+          "object": "成果文件",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {},
+          "message": "文件无法正常读取"
+        },
+        {
+          "code": "A020102",
+          "name": "文件名应符合命名规则",
+          "object": "成果文件",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "fileNameRegex": "^[A-Za-z0-9_.-]+$"
+          },
+          "message": "文件名不符合命名规则"
+        },
+        {
+          "code": "A020103",
+          "name": "文件扩展名应符合要求",
+          "object": "成果文件",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "allowedExtensions": ".shp,.shx,.dbf,.prj,.gpkg,.xml,.txt,.md,.csv,.xlsx,.docx,.pdf"
+          },
+          "message": "文件扩展名不符合要求"
+        },
+        {
+          "code": "A020104",
+          "name": "文件版本应符合要求",
+          "object": "成果文件",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "versionFiles": "readme.txt",
+            "requiredVersionText": "VERSION=2.0"
+          },
+          "message": "文件版本不符合要求"
+        }
+      ]
+    },
+    {
+      "code": "B",
+      "name": "属性专题",
+      "rules": [
+        {
+          "code": "B010101",
+          "name": "数据集应匹配数据库分层信息",
+          "object": "数据库分层",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "allowedDatasets": "GXDT_GX,GXDT_GD,GXDL_GX,GXDL_GD,PCFW"
+          },
+          "message": "数据集未匹配到数据库分层信息"
+        },
+        {
+          "code": "B010102",
+          "name": "必选数据集不得缺失",
+          "object": "数据库分层",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "requiredTables": "GXDT_GX,GXDT_GD,GXDL_GX,GXDL_GD,PCFW,MissingDataset"
+          },
+          "message": "缺失必选数据集"
+        },
+        {
+          "code": "B010201",
+          "name": "数据表应匹配数据库分层信息",
+          "object": "数据库分层",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "allowedTables": "GXDT_GX,GXDT_GD,GXDL_GX,GXDL_GD,PCFW"
+          },
+          "message": "数据表未匹配到数据库分层信息"
+        },
+        {
+          "code": "B010202",
+          "name": "必选数据表不得缺失",
+          "object": "数据库分层",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "requiredTables": "GXDT_GX,GXDT_GD,GXDL_GX,GXDL_GD,PCFW"
+          },
+          "message": "缺失必选数据表"
+        },
+        {
+          "code": "B010203",
+          "name": "表别名和表类型应符合数据库分层规定",
+          "object": "数据库分层",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "tableAliasTypes": "GXDT_GX=管线点;GXDT_GD=管线段;GXDL_GX=道路点;GXDL_GD=道路段;PCFW=普查范围"
+          },
+          "message": "表别名或表类型不符合数据库分层的规定"
+        },
+        {
+          "code": "B010204",
+          "name": "表与数据集组织结构应符合数据库分层规定",
+          "object": "数据库分层",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "tableDatasets": "GXDT_GX=管线数据;GXDT_GD=管线数据;GXDL_GX=道路数据;GXDL_GD=道路数据;PCFW=范围数据"
+          },
+          "message": "表与数据集的组织结构不符合数据库分层的规定"
+        },
+        {
+          "code": "B020101",
+          "name": "数据表应匹配数据表规范",
+          "object": "数据表结构",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "allowedTables": "GXDT_GX,GXDT_GD,GXDL_GX,GXDL_GD,PCFW"
+          },
+          "message": "未匹配到数据表规范"
+        },
+        {
+          "code": "B020102",
+          "name": "字段名应匹配数据表规范",
+          "object": "数据表结构",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "requiredFields": "",
+            "allowedFields": ""
+          },
+          "message": "字段名与数据表规范不匹配"
+        },
+        {
+          "code": "B020103",
+          "name": "字段别名和类型应符合数据表规范",
+          "object": "数据表结构",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "fieldTypes": ""
+          },
+          "message": "字段类型不符合数据表规范"
+        },
+        {
+          "code": "B020104",
+          "name": "字段长度应符合数据表规范",
+          "object": "数据表结构",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "fieldLengths": ""
+          },
+          "message": "字段长度不符合数据表规范"
+        },
+        {
+          "code": "B020106",
+          "name": "字段值域应符合数据表规范",
+          "object": "数据表结构",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "valueDomains": ""
+          },
+          "message": "字段值域不符合数据表规范"
+        },
+        {
+          "code": "B020107",
+          "name": "字段取值唯一性应符合数据表规范",
+          "object": "数据表结构",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "uniqueFields": ""
+          },
+          "message": "字段取值唯一性不符合数据表规范"
+        },
+        {
+          "code": "B020108",
+          "name": "字段必填性应符合数据表规范",
+          "object": "数据表结构",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "requiredValueFields": ""
+          },
+          "message": "字段必填性不符合数据表规范"
+        },
+        {
+          "code": "B020201",
+          "name": "单一字段取值应符合枚举值",
+          "object": "数据表结构",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "singleFieldEnums": ""
+          },
+          "message": "单一字段取值不符合枚举值"
+        },
+        {
+          "code": "B020202",
+          "name": "多字段取值应符合枚举值对应关系",
+          "object": "数据表结构",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "multiFieldEnums": ""
+          },
+          "message": "字段取值不符合枚举值对应关系"
+        }
+      ]
+    },
+    {
+      "code": "C",
+      "name": "空间专题",
+      "rules": [
+        {
+          "code": "C010101",
+          "name": "空间数据范围应位于工作范围内",
+          "object": "空间基础",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "minX": "119",
+            "minY": "29",
+            "maxX": "121",
+            "maxY": "31",
+            "tolerance": "0",
+            "layers": ""
+          },
+          "message": "超出工作范围"
+        },
+        {
+          "code": "C010201",
+          "name": "坐标系统应符合要求",
+          "object": "空间基础",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "wkid": "4490",
+            "name": "CGCS2000"
+          },
+          "message": "坐标系统不符合要求"
+        },
+        {
+          "code": "C020201",
+          "name": "（线）不能存在碎线",
+          "object": "线",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "tolerance": "0.001",
+            "unit": "meter",
+            "layers": ""
+          },
+          "message": "线图层不能存在长度小于容差的线段。默认容差0.001m。"
+        },
+        {
+          "code": "C020301",
+          "name": "（面）不能存在超短边",
+          "object": "面",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "tolerance": "0.001",
+            "layers": ""
+          },
+          "message": "面的边界不能存在长度小于容差的线段。默认容差0.001m。"
+        },
+        {
+          "code": "C020302",
+          "name": "（面）不能存在尖锐角",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "angleTolerance": "20",
+            "layers": ""
+          },
+          "message": "面的每个顶点不能存在角度小于容差的尖锐角。默认容差20°。"
+        },
+        {
+          "code": "C020303",
+          "name": "（面）不能存在微小面",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "areaTolerance": "0.0001",
+            "layers": ""
+          },
+          "message": "面图层不能存在面积小于容差的面要素。默认容差0.0001㎡。"
+        },
+        {
+          "code": "C020401",
+          "name": "（线、面）节点数量必须符合要求",
+          "object": "线、面",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "minNodes": "2",
+            "maxNodes": "0",
+            "layers": ""
+          },
+          "message": "图层中的要素节点数量必须满足要求。节点数最大值M、最小值N，默认N=2，即节点数不少于2个。"
+        },
+        {
+          "code": "C020402",
+          "name": "（线、面）不能存在圆弧",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "layers": ""
+          },
+          "message": "图层中的要素或要素边界不能包含圆弧。"
+        },
+        {
+          "code": "C020501",
+          "name": "（点、线、面）不能含Z值",
+          "object": "点、线、面",
+          "enabled": true,
+          "severity": "warning",
+          "parameters": {
+            "layers": ""
+          },
+          "message": "图层中的要素不能包含Z值（存储三维信息）。"
+        },
+        {
+          "code": "C030101",
+          "name": "（点）必须不重合",
+          "object": "点",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "tolerance": "0.001",
+            "layers": ""
+          },
+          "message": "点必须与相同图层中的其他点在空间上相互分离。 重叠的任何点都是错误。"
+        },
+        {
+          "code": "C030102",
+          "name": "（点）必须为单一部件",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "layers": ""
+          },
+          "message": "点必须只包含一个部分。"
+        },
+        {
+          "code": "C030103",
+          "name": "（点-点）必须与其他图层的点重合",
+          "object": "点-点",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "CoincideSourcePoints",
+            "referenceLayer": "CoincideReferencePoints"
+          },
+          "message": "一个图层中的点必须与另一个图层中的点重合"
+        },
+        {
+          "code": "C030104",
+          "name": "（点-线）必须被线的端点覆盖",
+          "object": "点-线",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "PointEndpointSourcePoints",
+            "referenceLayer": "PointEndpointReferenceLines"
+          },
+          "message": "一个图层中的点必须被另一图层中线的端点覆盖。"
+        },
+        {
+          "code": "C030105",
+          "name": "（点-线）必须被线覆盖",
+          "object": "点-线",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "PointLineSourcePoints",
+            "referenceLayer": "PointLineReferenceLines"
+          },
+          "message": "一个图层中的点必须被另一个图层中的线覆盖"
+        },
+        {
+          "code": "C030106",
+          "name": "（点-面）必须位于面的边界上",
+          "object": "点-面",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "PointBoundarySourcePoints",
+            "referenceLayer": "PointBoundaryPolys"
+          },
+          "message": "点必须位于面要素的边界上。"
+        },
+        {
+          "code": "C030107",
+          "name": "（点-面）必须位于面的内部",
+          "object": "点-面",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "PointInteriorSourcePoints",
+            "referenceLayer": "PointInteriorPolys"
+          },
+          "message": "点必须位于面要素内部。落在边界、外部，均视为异常。"
+        },
+        {
+          "code": "C030201",
+          "name": "（线）不能重叠",
+          "object": "线",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "tolerance": "0.001",
+            "layers": ""
+          },
+          "message": "线不得与同一图层中的线重叠。"
+        },
+        {
+          "code": "C030202",
+          "name": "（线）不能相交",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "tolerance": "0.001",
+            "layers": ""
+          },
+          "message": "相同图层中的线要素不能彼此相交或重叠。 线可以共享端点。"
+        },
+        {
+          "code": "C030203",
+          "name": "（线）不能有悬挂点",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {"layers": ""},
+          "message": "线要素的两个端点必须都接触到相同图层中的线。未连接到另一条线的端点称为悬挂点。"
+        },
+        {
+          "code": "C030204",
+          "name": "（线）不能有伪结点（检查单一要素的多余节点）",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "layers": ""
+          },
+          "message": "单一线要素中不能有多余节点（不影响线的长度）。"
+        },
+        {
+          "code": "C030205",
+          "name": "（线）不能有伪结点（检查要素连通性）",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "layers": ""
+          },
+          "message": "线在每个端点处至少连接两条其他线。 连接到一条其他线（或到其自身）的线被认为是包含了伪结点。"
+        },
+        {
+          "code": "C030206",
+          "name": "（线）不能自重叠",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "layers": ""
+          },
+          "message": "线不得与自身重叠。 这些线可以交叉或接触但不得有重合的线段。"
+        },
+        {
+          "code": "C030207",
+          "name": "（线）不能自相交",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "layers": ""
+          },
+          "message": "线不得交叉或与自身重叠。"
+        },
+        {
+          "code": "C030208",
+          "name": "（线）必须为单一部件",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "layers": ""
+          },
+          "message": "线必须只包含一个部分。"
+        },
+        {
+          "code": "C030210",
+          "name": "（线-点）端点必须被另一图层的点覆盖",
+          "object": "线-点",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "EndpointLines",
+            "referenceLayer": "EndpointPoints"
+          },
+          "message": "线的端点必须被另一图层中的点覆盖。"
+        },
+        {
+          "code": "C030211",
+          "name": "（线-线）必须被其他图层的线覆盖",
+          "object": "线-线",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "CoverSourceLines",
+            "referenceLayer": "CoverReferenceLines"
+          },
+          "message": "一个图层中的线必须被另一个图层中的线覆盖。"
+        },
+        {
+          "code": "C030212",
+          "name": "（线-线）不能与其他图层的线重叠",
+          "object": "线-线",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "NoOverlapSourceLines",
+            "referenceLayer": "NoOverlapReferenceLines"
+          },
+          "message": "一个图层中的线不能与另一个图层中的线重叠。"
+        },
+        {
+          "code": "C030213",
+          "name": "（线-线）不能与其他图层的线相交",
+          "object": "线-线",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "NoCrossSourceLines",
+            "referenceLayer": "NoCrossReferenceLines"
+          },
+          "message": "一个图层中的线不得与另一个图层中的线相交或重叠。 线可以共享端点。"
+        },
+        {
+          "code": "C030215",
+          "name": "（线-面）必须被面的边界覆盖",
+          "object": "线-面",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "BoundaryLines",
+            "referenceLayer": "BoundaryPolys"
+          },
+          "message": "线必须被面要素的边界覆盖。"
+        },
+        {
+          "code": "C030216",
+          "name": "（线-面）必须位于面的内部",
+          "object": "线-面",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "InteriorLines",
+            "referenceLayer": "InteriorPolys"
+          },
+          "message": "线必须包含在面的边界内。"
+        },
+        {
+          "code": "C030301",
+          "name": "（面）不能有空隙",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "gapTolerance": "0.001",
+            "layers": ""
+          },
+          "message": "同一图层面要素之间不得存在超过容差的空隙。"
+        },
+        {
+          "code": "C030302",
+          "name": "（面）不能重叠",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "areaTolerance": "0.0001",
+            "layers": ""
+          },
+          "message": "面不得重叠。 面可以共享边或折点。"
+        },
+        {
+          "code": "C030303",
+          "name": "（面）不能自相交",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "layers": ""
+          },
+          "message": "面的边界不得交叉或与自身重叠。"
+        },
+        {
+          "code": "C030304",
+          "name": "（面）不能有伪结点（检查单一要素的多余节点）",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "layers": ""
+          },
+          "message": "单一面要素中不能有多余节点（不影响面的周长和面积）。"
+        },
+        {
+          "code": "C030305",
+          "name": "（面）不能有孔洞",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "layers": ""
+          },
+          "message": "面不得包含封闭的内部空隙，不得有内部孔洞。"
+        },
+        {
+          "code": "C030306",
+          "name": "（面）必须为单一部件",
+          "object": "空间图层",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "layers": ""
+          },
+          "message": "面必须只包含一个部分。"
+        },
+        {
+          "code": "C030307",
+          "name": "（面-点）必须包含点",
+          "object": "面-点",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "ContainsPolygons",
+            "referenceLayer": "ContainsPoints"
+          },
+          "message": "一个图层中的面必须至少包含另一个图层中的一个点。 点必须位于面中，而不是边界上。"
+        },
+        {
+          "code": "C030308",
+          "name": "（面-点）必须包含一个点",
+          "object": "面-点",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "ContainsPolygons",
+            "referenceLayer": "ContainsPoints"
+          },
+          "message": "每个面必须包含一个点要素，并且每个点要素必须位于单个面内，而不是边界上。"
+        },
+        {
+          "code": "C030309",
+          "name": "（面-线）边界必须被线覆盖",
+          "object": "面-线",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "PolygonBoundaryPolygons",
+            "referenceLayer": "PolygonBoundaryLines"
+          },
+          "message": "面要素的边界必须被另一图层中的线覆盖。"
+        },
+        {
+          "code": "C030310",
+          "name": "（面-面）必须被其他图层的面覆盖",
+          "object": "面-面",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "CoverSourcePolygons",
+            "referenceLayer": "CoverReferencePolygons"
+          },
+          "message": "一个图层中的面必须向另一个图层中的面共享自身所有的区域。 第一个图层中若存在未被其他图层的面覆盖的区域则视作错误。"
+        },
+        {
+          "code": "C030312",
+          "name": "（面-面）必须与其他图层的面相互覆盖",
+          "object": "面-面",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "CoverSourcePolygons",
+            "referenceLayer": "CoverReferencePolygons"
+          },
+          "message": "一个图层的面必须与另一个图层的面共享双方的所有区域。 面可以共享边或折点。"
+        },
+        {
+          "code": "C030313",
+          "name": "（面-面）不得与其他图层的面重叠",
+          "object": "面-面",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "NoOverlapSourcePolygons",
+            "referenceLayer": "NoOverlapReferencePolygons"
+          },
+          "message": "一个图层面的内部不得与另一个图层面的内部相重叠。 两个图层的面可以共享边或折点，或完全不相交。"
+        },
+        {
+          "code": "C030314",
+          "name": "（面-面）边界必须被其他面图层的边界覆盖",
+          "object": "面-面",
+          "enabled": true,
+          "severity": "error",
+          "parameters": {
+            "sourceLayer": "PolygonBoundarySourcePolygons",
+            "referenceLayer": "PolygonBoundaryReferencePolygons"
+          },
+          "message": "一个图层中的面的边界必须被另一个图层中面的边界覆盖。"
+        }
+      ]
+    }
+  ]
+}

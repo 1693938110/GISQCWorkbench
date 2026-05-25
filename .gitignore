@@ -1,0 +1,48 @@
+# Build directories
+build-*/
+build_*/
+
+# Dist / packaging outputs
+dist/
+*.zip
+
+# Object files
+*.obj
+*.o
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.exp
+
+# IDE
+.vs/
+.vscode/
+*.user
+CMakeUserPresets.json
+
+# Qt
+moc_*
+ui_*
+qrc_*
+
+# Logs
+*.log
+*.log.*
+
+# Test outputs
+qa_test_outputs/
+qa_test_outputs_after_deploy/
+qa_test_outputs_ascii/
+qa_regression_outputs/
+qa_synthetic_data/
+tmp_*/
+
+# Third party (empty placeholder)
+third_party/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store

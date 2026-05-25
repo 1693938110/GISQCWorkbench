@@ -566,162 +566,45 @@ std::vector<IssueRecord> RuleCheckEngine::check(const std::string& rootPath, con
         }
 
         if (rule.code == "A010101") {
+            // Template directory comparison: compare target (root) against template directory
             if (!fs::exists(root) || !fs::is_directory(root)) {
                 issues.push_back(makeIssue(issueIndex++, rule, "成果目录", pathText(root), "目录无法正常读取：" + pathText(root)));
                 continue;
             }
-            const auto readIntParameter = [](const RuleDefinition& r, const std::string& name, int defaultValue) {
-                const auto it = r.parameters.find(name);
-                if (it == r.parameters.end()) {
-                    return defaultValue;
-                }
-                try {
-                    return std::stoi(it->second);
-                } catch (...) {
-                    return defaultValue;
-                }
-            };
-            const int minLevels = readIntParameter(rule, "minLevelCount", 0);
-            const int maxLevels = readIntParameter(rule, "maxLevelCount", 0);
-            if (minLevels > 0 || maxLevels > 0) {
-                int childDirectoryCount = 0;
-                for (const auto& entry : fs::directory_iterator(root)) {
-                    if (entry.is_directory()) {
-                        ++childDirectoryCount;
-                    }
-                }
-                if ((minLevels > 0 && childDirectoryCount < minLevels) ||
-                    (maxLevels > 0 && childDirectoryCount > maxLevels)) {
-                    issues.push_back(makeIssue(issueIndex++, rule, "成果目录", "层级数量",
-                        "目录层级数量不符合要求，当前一级子目录数量=" + std::to_string(childDirectoryCount)));
+            const auto templateDirStr = rule.parameters.count("templateDir") ? rule.parameters.at("templateDir") : "";
+            if (templateDirStr.empty()) {
+                issues.push_back(makeIssue(issueIndex++, rule, "成果目录", "templateDir", "未配置模板目录(templateDir)参数"));
+                continue;
+            }
+            const fs::path templateDir = fs::u8path(templateDirStr);
+            if (!fs::exists(templateDir) || !fs::is_directory(templateDir)) {
+                issues.push_back(makeIssue(issueIndex++, rule, "成果目录", templateDirStr, "模板目录不存在或不是目录：" + templateDirStr));
+                continue;
+            }
+            // Collect relative paths in template
+            std::set<std::string> templateEntries;
+            for (const auto& entry : fs::recursive_directory_iterator(templateDir)) {
+                auto rel = fs::relative(entry.path(), templateDir);
+                templateEntries.insert(pathText(rel));
+            }
+            // Collect relative paths in target
+            std::set<std::string> targetEntries;
+            for (const auto& entry : fs::recursive_directory_iterator(root)) {
+                auto rel = fs::relative(entry.path(), root);
+                targetEntries.insert(pathText(rel));
+            }
+            // Missing in target (template has, target doesn't)
+            for (const auto& tpl : templateEntries) {
+                if (targetEntries.find(tpl) == targetEntries.end()) {
+                    issues.push_back(makeIssue(issueIndex++, rule, "成果目录", tpl,
+                        "缺少文件或文件夹：" + tpl));
                 }
             }
-        } else if (rule.code == "A010102") {
-            const auto pattern = rule.parameters.count("rootNameRegex") ? rule.parameters.at("rootNameRegex") : "^[A-Za-z0-9_\\-.]+$";
-            const std::regex regex(pattern);
-            const auto rootName = pathText(root.filename());
-            if (!std::regex_match(rootName, regex)) {
-                issues.push_back(makeIssue(issueIndex++, rule, "成果目录", rootName,
-                    "目录名称不符合命名要求：" + rootName));
-            }
-        } else if (rule.code == "A010103") {
-            for (const auto& folder : csvParameter(rule, "requiredFolders", "空间数据,文档资料,元数据")) {
-                const auto candidate = root / fs::u8path(folder);
-                if (!fs::exists(candidate) || !fs::is_directory(candidate)) {
-                    issues.push_back(makeIssue(issueIndex++, rule, "成果目录", folder,
-                        rule.message.empty() ? "缺少必交付子目录：" + folder : rule.message + "：" + folder));
-                }
-            }
-            for (const auto& relativePath : csvParameter(rule, "requiredPaths")) {
-                const auto candidate = root / pathFromText(relativePath);
-                if (!isRegularOrDirectory(candidate)) {
-                    issues.push_back(makeIssue(issueIndex++, rule, "成果目录", relativePath,
-                        "缺失必选目录或文件：" + relativePath));
-                }
-            }
-        } else if (rule.code == "A010104") {
-            for (const auto& file : csvParameter(rule, "requiredFiles")) {
-                const auto candidate = root / pathFromText(file);
-                if (!fs::exists(candidate) || !fs::is_regular_file(candidate)) {
-                    issues.push_back(makeIssue(issueIndex++, rule, "成果目录", file,
-                        "缺少必交付文件：" + file));
-                }
-            }
-        } else if (rule.code == "A010201") {
-            if (!hasSupportedDataset(root)) {
-                issues.push_back(makeIssue(issueIndex++, rule, "成果目录", "数据源",
-                    "未发现 FileGDB、Shapefile 或 GeoPackage 数据入口"));
-            }
-        } else if (rule.code == "A010301" && truthyParameter(rule, "scanEmptyFolders", true)) {
-            if (fs::exists(root)) {
-                for (const auto& entry : fs::recursive_directory_iterator(root)) {
-                    if (entry.is_directory() && entry.path().extension() != ".gdb" && isDirectoryEmpty(entry.path())) {
-                        issues.push_back(makeIssue(issueIndex++, rule, "成果目录", pathText(entry.path().filename()),
-                            "发现空目录：" + pathText(entry.path())));
-                    }
-                }
-            }
-        } else if (rule.code == "A010302") {
-            const auto pattern = rule.parameters.count("fileNameRegex") ? rule.parameters.at("fileNameRegex") : "^[A-Za-z0-9_\\-.]+$";
-            const std::regex regex(pattern);
-            if (fs::exists(root)) {
-                for (const auto& entry : fs::recursive_directory_iterator(root)) {
-                    if (entry.is_regular_file()) {
-                        const auto name = pathText(entry.path().filename());
-                        if (!std::regex_match(name, regex)) {
-                            issues.push_back(makeIssue(issueIndex++, rule, "成果目录", name, "文件命名不符合规范：" + name));
-                        }
-                    }
-                }
-            }
-        } else if (rule.code == "A010303" && truthyParameter(rule, "checkShapefileSidecars", true)) {
-            if (fs::exists(root)) {
-                for (const auto& entry : fs::recursive_directory_iterator(root)) {
-                    if (!entry.is_regular_file() || entry.path().extension() != ".shp") {
-                        continue;
-                    }
-                    for (const auto& ext : {".shx", ".dbf"}) {
-                        auto sidecar = entry.path();
-                        sidecar.replace_extension(ext);
-                        if (!fs::exists(sidecar)) {
-                            issues.push_back(makeIssue(issueIndex++, rule, pathText(entry.path().stem()), pathText(sidecar.filename()),
-                                "Shapefile 缺少配套文件：" + pathText(sidecar.filename())));
-                        }
-                    }
-                }
-            }
-        } else if (rule.code == "A020101") {
-            if (fs::exists(root)) {
-                for (const auto& entry : fs::recursive_directory_iterator(root)) {
-                    if (!entry.is_regular_file()) {
-                        continue;
-                    }
-                    std::ifstream in(entry.path(), std::ios::binary);
-                    if (!in.good()) {
-                        const auto name = pathText(entry.path().filename());
-                        issues.push_back(makeIssue(issueIndex++, rule, "成果文件", name, "文件无法正常读取：" + name));
-                    }
-                }
-            }
-        } else if (rule.code == "A020102") {
-            const auto pattern = rule.parameters.count("fileNameRegex") ? rule.parameters.at("fileNameRegex") : "^[A-Za-z0-9_.-]+$";
-            const std::regex regex(pattern);
-            if (fs::exists(root)) {
-                for (const auto& entry : fs::recursive_directory_iterator(root)) {
-                    if (!entry.is_regular_file()) {
-                        continue;
-                    }
-                    const auto name = pathText(entry.path().filename());
-                    if (!std::regex_match(name, regex)) {
-                        issues.push_back(makeIssue(issueIndex++, rule, "成果文件", name, "文件名不符合命名规则：" + name));
-                    }
-                }
-            }
-        } else if (rule.code == "A020103") {
-            const auto allowedExtensions = csvParameter(rule, "allowedExtensions", ".shp,.shx,.dbf,.prj,.gpkg,.xml,.txt,.md,.csv,.xlsx,.docx,.pdf");
-            if (fs::exists(root)) {
-                for (const auto& entry : fs::recursive_directory_iterator(root)) {
-                    if (!entry.is_regular_file()) {
-                        continue;
-                    }
-                    const auto ext = lower(pathText(entry.path().extension()));
-                    if (!containsName(allowedExtensions, ext)) {
-                        const auto name = pathText(entry.path().filename());
-                        issues.push_back(makeIssue(issueIndex++, rule, "成果文件", name, "文件扩展名不符合要求：" + ext));
-                    }
-                }
-            }
-        } else if (rule.code == "A020104") {
-            const auto requiredText = rule.parameters.count("requiredVersionText") ? rule.parameters.at("requiredVersionText") : "";
-            const auto files = csvParameter(rule, "versionFiles");
-            if (!requiredText.empty()) {
-                for (const auto& file : files) {
-                    const auto candidate = root / pathFromText(file);
-                    std::ifstream in(candidate, std::ios::binary);
-                    std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-                    if (!in.good() || content.find(requiredText) == std::string::npos) {
-                        issues.push_back(makeIssue(issueIndex++, rule, "成果文件", file, "文件版本不符合要求：" + file));
-                    }
+            // Extra in target (target has, template doesn't)
+            for (const auto& tgt : targetEntries) {
+                if (templateEntries.find(tgt) == templateEntries.end()) {
+                    issues.push_back(makeIssue(issueIndex++, rule, "成果目录", tgt,
+                        "多余文件或文件夹：" + tgt));
                 }
             }
         } else if (rule.code == "B010201" || rule.code == "B010101" || rule.code == "B020101" || rule.code == "B010102" || rule.code == "B010202" ||
@@ -1495,6 +1378,39 @@ void RuleCheckEngine::appendGdalGeometryIssues(const fs::path& rootPath, const R
 
     configureGdalRuntime();
     GDALAllRegister();
+
+    // C010101: load reference polygon layer as spatial boundary
+    std::unique_ptr<OGRGeometry, decltype(&OGRGeometryFactory::destroyGeometry)> referenceExtentGeom(nullptr, OGRGeometryFactory::destroyGeometry);
+    if (rule.code == "C010101") {
+        const auto refLayerName = rule.parameters.count("referenceLayer") ? rule.parameters.at("referenceLayer") : std::string();
+        if (!refLayerName.empty()) {
+            for (const auto& src : scanned.sources) {
+                GDALDataset* refDs = static_cast<GDALDataset*>(GDALOpenEx(src.path.c_str(), GDAL_OF_VECTOR | GDAL_OF_READONLY, nullptr, nullptr, nullptr));
+                if (!refDs) continue;
+                for (int li = 0; li < refDs->GetLayerCount(); ++li) {
+                    OGRLayer* refLayer = refDs->GetLayer(li);
+                    if (!refLayer) continue;
+                    const std::string ln = refLayer->GetName() ? refLayer->GetName() : src.layerName;
+                    if (!containsName({refLayerName}, ln)) continue;
+                    refLayer->ResetReading();
+                    OGRFeature* refFeat = nullptr;
+                    while ((refFeat = refLayer->GetNextFeature()) != nullptr) {
+                        OGRGeometry* g = refFeat->GetGeometryRef();
+                        if (g && isPolygonLike(g->getGeometryType())) {
+                            if (!referenceExtentGeom) {
+                                referenceExtentGeom.reset(g->clone());
+                            } else {
+                                OGRGeometry* merged = referenceExtentGeom->Union(g);
+                                if (merged) referenceExtentGeom.reset(merged);
+                            }
+                        }
+                        OGRFeature::DestroyFeature(refFeat);
+                    }
+                }
+                GDALClose(refDs);
+            }
+        }
+    }
     for (const auto& source : scanned.sources) {
         GDALDataset* dataset = static_cast<GDALDataset*>(GDALOpenEx(source.path.c_str(), GDAL_OF_VECTOR | GDAL_OF_READONLY, nullptr, nullptr, nullptr));
         if (!dataset) {
@@ -1526,7 +1442,12 @@ void RuleCheckEngine::appendGdalGeometryIssues(const fs::path& rootPath, const R
                 const std::string fid = std::to_string(feature->GetFID());
                 const OGRwkbGeometryType flatType = wkbFlatten(geometry->getGeometryType());
                 if (rule.code == "C010101") {
-                    if (hasWorkingExtent) {
+                    if (referenceExtentGeom) {
+                        if (!referenceExtentGeom->Contains(geometry)) {
+                            issues.push_back(makeGeometryIssue(issueIndex++, rule, layerName, fid,
+                                "要素超出参照面图层范围", source.path, geometry));
+                        }
+                    } else if (hasWorkingExtent) {
                         OGREnvelope featureExtent{};
                         geometry->getEnvelope(&featureExtent);
                         if (!envelopeWithin(featureExtent, allowedExtent, tolerance)) {
@@ -1535,7 +1456,7 @@ void RuleCheckEngine::appendGdalGeometryIssues(const fs::path& rootPath, const R
                         }
                     } else {
                         issues.push_back(makeIssue(issueIndex++, rule, layerName, fid,
-                            "空间范围规则缺少有效工作范围参数：bbox 或 minX,minY,maxX,maxY"));
+                            "空间范围规则缺少参照面图层(referenceLayer)参数"));
                     }
                 }
                 if ((needsSameLayerPairs || needsLineEndpointGraph) && geometry) {
@@ -1553,21 +1474,23 @@ void RuleCheckEngine::appendGdalGeometryIssues(const fs::path& rootPath, const R
                 if (rule.code == "C020501" && geometry->getCoordinateDimension() >= 3) {
                     issues.push_back(makeGeometryIssue(issueIndex++, rule, layerName, fid, "要素包含 Z 值", source.path, geometry));
                 } else if (rule.code == "C020201") {
+                    const double minLength = parameterDouble(rule, "minLength", tolerance);
                     double length = -1.0;
                     if (const auto* curve = dynamic_cast<const OGRCurve*>(geometry)) {
                         length = curve->get_Length();
                     } else if (const auto* multiCurve = dynamic_cast<const OGRMultiCurve*>(geometry)) {
                         length = multiCurve->get_Length();
                     }
-                    if ((flatType == wkbLineString || flatType == wkbMultiLineString) && length >= 0.0 && length < tolerance) {
+                    if ((flatType == wkbLineString || flatType == wkbMultiLineString) && length >= 0.0 && length < minLength) {
                         issues.push_back(makeGeometryIssue(issueIndex++, rule, layerName, fid,
-                            "线要素长度小于容差{" + std::to_string(tolerance) + "m}", source.path, geometry));
+                            "线要素长度{" + std::to_string(length) + "m}小于阈值{" + std::to_string(minLength) + "m}", source.path, geometry));
                     }
                 } else if (rule.code == "C020301") {
+                    const double minEdgeLen = parameterDouble(rule, "minEdgeLength", tolerance);
                     const double minEdge = minPolygonSegmentLength(geometry);
-                    if ((flatType == wkbPolygon || flatType == wkbMultiPolygon) && minEdge < tolerance) {
+                    if ((flatType == wkbPolygon || flatType == wkbMultiPolygon) && minEdge < minEdgeLen) {
                         issues.push_back(makeGeometryIssue(issueIndex++, rule, layerName, fid,
-                            "面要素存在超短边，最短边长小于容差{" + std::to_string(tolerance) + "m}", source.path, geometry));
+                            "面要素存在超短边，最短边长{" + std::to_string(minEdge) + "m}小于阈值{" + std::to_string(minEdgeLen) + "m}", source.path, geometry));
                     }
                 } else if (rule.code == "C020302") {
                     if ((flatType == wkbPolygon || flatType == wkbMultiPolygon) && geometryHasSharpAngle(geometry, angleTolerance)) {

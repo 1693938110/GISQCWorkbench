@@ -1,4 +1,4 @@
-﻿{
+{
   "templateCode": "GIS_QC_STANDARD_V2",
   "templateName": "GIS数据通用标准化质量检查 V2.0",
   "source": "依据设计方案和FME工作流迁移的桌面端内置默认模板，运行配置在软件内部维护",
@@ -9,135 +9,14 @@
       "rules": [
         {
           "code": "A010101",
-          "name": "目录应可正常读取且层级数量符合要求",
+          "name": "成果目录结构必须与模板目录一致",
           "object": "成果目录",
           "enabled": true,
           "severity": "error",
           "parameters": {
-            "minLevelCount": "4"
+            "templateDir": ""
           },
-          "message": "目录无法正常读取或层级数量不符合要求"
-        },
-        {
-          "code": "A010102",
-          "name": "目录名称应匹配对应层级命名要求",
-          "object": "成果目录",
-          "enabled": true,
-          "severity": "warning",
-          "parameters": {
-            "rootNameRegex": "^[A-Za-z0-9_.-]+$"
-          },
-          "message": "目录名称未匹配到对应层级下的命名要求"
-        },
-        {
-          "code": "A010103",
-          "name": "必选目录或文件不得缺失",
-          "object": "成果目录",
-          "enabled": true,
-          "severity": "error",
-          "parameters": {
-            "requiredFolders": "空间数据,文档资料,元数据",
-            "requiredPaths": ""
-          },
-          "message": "缺失必选目录或文件"
-        },
-        {
-          "code": "A010104",
-          "name": "必交付文件不得缺失",
-          "object": "成果目录",
-          "enabled": true,
-          "severity": "error",
-          "parameters": {
-            "requiredFiles": "metadata.xml,readme.txt"
-          },
-          "message": "缺少必交付文件"
-        },
-        {
-          "code": "A010201",
-          "name": "成果目录必须包含可识别 GIS 数据入口",
-          "object": "成果目录",
-          "enabled": true,
-          "severity": "error",
-          "parameters": {
-            "requiredDataSource": "true"
-          },
-          "message": "未发现 FileGDB、Shapefile 或 GeoPackage 数据入口"
-        },
-        {
-          "code": "A010301",
-          "name": "成果目录不得包含空目录",
-          "object": "成果目录",
-          "enabled": true,
-          "severity": "warning",
-          "parameters": {
-            "scanEmptyFolders": "true"
-          },
-          "message": "发现空目录"
-        },
-        {
-          "code": "A010302",
-          "name": "成果文件命名应符合规范",
-          "object": "成果文件",
-          "enabled": true,
-          "severity": "warning",
-          "parameters": {
-            "fileNameRegex": "^[A-Za-z0-9_.-]+$"
-          },
-          "message": "文件命名不符合规范"
-        },
-        {
-          "code": "A010303",
-          "name": "Shapefile 配套文件必须完整",
-          "object": "Shapefile",
-          "enabled": true,
-          "severity": "error",
-          "parameters": {
-            "checkShapefileSidecars": "true"
-          },
-          "message": "Shapefile 缺少配套文件"
-        },
-        {
-          "code": "A020101",
-          "name": "文件应可正常读取",
-          "object": "成果文件",
-          "enabled": true,
-          "severity": "error",
-          "parameters": {},
-          "message": "文件无法正常读取"
-        },
-        {
-          "code": "A020102",
-          "name": "文件名应符合命名规则",
-          "object": "成果文件",
-          "enabled": true,
-          "severity": "warning",
-          "parameters": {
-            "fileNameRegex": "^[A-Za-z0-9_.-]+$"
-          },
-          "message": "文件名不符合命名规则"
-        },
-        {
-          "code": "A020103",
-          "name": "文件扩展名应符合要求",
-          "object": "成果文件",
-          "enabled": true,
-          "severity": "warning",
-          "parameters": {
-            "allowedExtensions": ".shp,.shx,.dbf,.prj,.gpkg,.xml,.txt,.md,.csv,.xlsx,.docx,.pdf"
-          },
-          "message": "文件扩展名不符合要求"
-        },
-        {
-          "code": "A020104",
-          "name": "文件版本应符合要求",
-          "object": "成果文件",
-          "enabled": true,
-          "severity": "warning",
-          "parameters": {
-            "versionFiles": "readme.txt",
-            "requiredVersionText": "VERSION=2.0"
-          },
-          "message": "文件版本不符合要求"
+          "message": "成果目录结构与模板不一致：存在缺少或多余的文件/文件夹"
         }
       ]
     },
@@ -324,11 +203,7 @@
           "enabled": true,
           "severity": "error",
           "parameters": {
-            "minX": "119",
-            "minY": "29",
-            "maxX": "121",
-            "maxY": "31",
-            "tolerance": "0",
+            "referenceLayer": "",
             "layers": ""
           },
           "message": "超出工作范围"
@@ -352,11 +227,10 @@
           "enabled": true,
           "severity": "warning",
           "parameters": {
-            "tolerance": "0.001",
-            "unit": "meter",
+            "minLength": "0.001",
             "layers": ""
           },
-          "message": "线图层不能存在长度小于容差的线段。默认容差0.001m。"
+          "message": "线图层不能存在长度小于阈值的线段。默认阈值0.001m。"
         },
         {
           "code": "C020301",
@@ -365,10 +239,10 @@
           "enabled": true,
           "severity": "warning",
           "parameters": {
-            "tolerance": "0.001",
+            "minEdgeLength": "0.001",
             "layers": ""
           },
-          "message": "面的边界不能存在长度小于容差的线段。默认容差0.001m。"
+          "message": "面的边界不能存在长度小于阈值的线段。默认阈值0.001m。"
         },
         {
           "code": "C020302",

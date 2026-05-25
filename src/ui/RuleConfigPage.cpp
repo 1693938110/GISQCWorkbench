@@ -74,6 +74,10 @@ QString friendlyParamLabel(const std::string& key) {
         {"singleFieldEnums", "单字段枚举"},
         {"multiFieldEnums", "多字段枚举对应"},
         {"unit", "单位"},
+        {"minLength", "碎线最短长度（m）"},
+        {"minEdgeLength", "超短边最短长度（m）"},
+        {"gapTolerance", "空隙面积阈值"},
+        {"templateDir", "模板目录"},
     };
     auto it = labels.find(key);
     return it != labels.end() ? it->second : QString::fromStdString(key);
@@ -856,6 +860,22 @@ void RuleConfigPage::updateDetailPanel() {
             }
             paramForm_->addRow(friendlyParamLabel(key), combo);
 
+        } else if (key == "templateDir") {
+            // ---- Directory picker ----
+            auto* container = new QWidget(paramPanel_);
+            auto* hbox = new QHBoxLayout(container);
+            hbox->setContentsMargins(0, 0, 0, 0);
+            auto* edit = new QLineEdit(qval, container);
+            edit->setObjectName(qkey);
+            auto* browseBtn = new QPushButton(QStringLiteral("..."), container);
+            browseBtn->setFixedWidth(30);
+            hbox->addWidget(edit);
+            hbox->addWidget(browseBtn);
+            connect(browseBtn, &QPushButton::clicked, this, [edit, this]() {
+                const QString dir = QFileDialog::getExistingDirectory(this, QStringLiteral("选择模板目录"), edit->text());
+                if (!dir.isEmpty()) edit->setText(dir);
+            });
+            paramForm_->addRow(friendlyParamLabel(key), container);
         } else {
             // ---- Default: plain text input ----
             auto* edit = new QLineEdit(qval, paramPanel_);

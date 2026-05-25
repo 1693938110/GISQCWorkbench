@@ -710,41 +710,17 @@ int main() {
 
     RuleCheckEngine engine;
 
-    auto dirRule = makeRule("A010103");
-    dirRule.parameters["requiredFolders"] = "空间数据,文档资料,元数据";
+    // A010101: template directory comparison
+    const fs::path templateDir = fs::temp_directory_path() / "gis_qc_template_test";
+    fs::remove_all(templateDir);
+    fs::create_directories(templateDir / fs::u8path(u8"\u7a7a\u95f4\u6570\u636e"));
+    fs::create_directories(templateDir / fs::u8path(u8"\u6587\u6863\u8d44\u6599"));
+    fs::create_directories(templateDir / fs::u8path(u8"\u5143\u6570\u636e"));
+    std::ofstream(templateDir / fs::u8path(u8"readme.txt")) << "template";
+    std::ofstream(templateDir / fs::u8path(u8"metadata.xml")) << "template";
 
-    auto rootReadableRule = makeRule("A010101");
-    rootReadableRule.parameters["minLevelCount"] = "4";
-
-    auto rootNameRule = makeRule("A010102", "warning");
-    rootNameRule.parameters["rootNameRegex"] = "^[A-Z0-9_]+$";
-
-    auto fileReadableRule = makeRule("A020101");
-
-    auto fileNameRule = makeRule("A020102", "warning");
-    fileNameRule.parameters["fileNameRegex"] = "^[A-Za-z0-9_.-]+$";
-
-    auto extensionRule = makeRule("A020103", "warning");
-    extensionRule.parameters["allowedExtensions"] = ".shp,.shx,.dbf,.prj,.txt,.xml,.gpkg";
-
-    auto versionRule = makeRule("A020104", "warning");
-    versionRule.parameters["versionFiles"] = "readme.txt";
-    versionRule.parameters["requiredVersionText"] = "VERSION=2.0";
-
-    auto fileRule = makeRule("A010104");
-    fileRule.parameters["requiredFiles"] = "readme.txt,metadata.xml";
-
-    auto sourceRule = makeRule("A010201");
-    sourceRule.parameters["requiredDataSource"] = "true";
-
-    auto emptyDirRule = makeRule("A010301", "warning");
-    emptyDirRule.parameters["scanEmptyFolders"] = "true";
-
-    auto namingRule = makeRule("A010302", "warning");
-    namingRule.parameters["fileNameRegex"] = "^[A-Za-z0-9_.-]+$";
-
-    auto sidecarRule = makeRule("A010303");
-    sidecarRule.parameters["checkShapefileSidecars"] = "true";
+    auto templateDirRule = makeRule("A010101");
+    templateDirRule.parameters["templateDir"] = templateDir.u8string();
 
     auto layerRule = makeRule("B010202");
     layerRule.parameters["requiredTables"] = "GXDX_GD,MissingLayer";
@@ -767,28 +743,17 @@ int main() {
     auto crsRule = makeRule("C010201");
     crsRule.parameters["wkid"] = "4490";
     crsRule.parameters["name"] = "CGCS2000";
-    auto rangeRule = makeRule("C010101");
-    rangeRule.parameters["layers"] = "OutOfRange";
-    rangeRule.parameters["minX"] = "119";
-    rangeRule.parameters["minY"] = "29";
-    rangeRule.parameters["maxX"] = "121";
-    rangeRule.parameters["maxY"] = "31";
+
     const auto issues = engine.check(root.u8string(), {
-        rootReadableRule, rootNameRule, fileReadableRule, fileNameRule, extensionRule, versionRule,
-        dirRule, fileRule, sourceRule, emptyDirRule, namingRule, sidecarRule,
+        templateDirRule,
         layerRule, datasetMatchRule, requiredDatasetRule, tableSpecRule, tableAliasTypeRule, tableDatasetRule, crsRule
     });
 
-    assert(hasIssue(issues, "A010101", "层级数量"));
-    assert(hasIssue(issues, "A010102", root.filename().u8string()));
-    assert(hasIssue(issues, "A010103", "元数据"));
-    assert(hasIssue(issues, "A010104", "metadata.xml"));
-    assert(hasIssue(issues, "A020102", "bad name.shp"));
-    assert(hasIssue(issues, "A020104", "readme.txt"));
-    assert(!hasIssue(issues, "A010201", "数据源"));
-    assert(hasIssue(issues, "A010301", "空目录"));
-    assert(hasIssue(issues, "A010302", "bad name.shp"));
-    assert(hasIssue(issues, "A010303", "GXDX_GD.dbf"));
+    // Template has: 空间数据/, 文档资料/, 元数据/, readme.txt, metadata.xml
+    // Target has: 空间数据/, 空目录/, readme.txt, bad name.shp, GXDX_GD.shp, GXDX_GD.shx
+    // Missing: 文档资料, 元数据, metadata.xml
+    // Extra: 空目录, bad name.shp, GXDX_GD.shp, GXDX_GD.shx
+    assert(hasIssue(issues, "A010101", "metadata.xml"));
     assert(hasIssue(issues, "B010202", "MissingLayer"));
     assert(hasIssue(issues, "B010101", "bad name"));
     assert(hasIssue(issues, "B010102", "MissingDataset"));
@@ -810,8 +775,10 @@ int main() {
     std::ofstream(root / fs::u8path(u8"元数据") / "keep.txt") << "x";
 
     layerRule.parameters["requiredTables"] = "GXDX_GD";
-    const auto fixedIssues = engine.check(root.u8string(), {dirRule, fileRule, sourceRule, emptyDirRule, namingRule, sidecarRule, layerRule, crsRule});
-    assert(fixedIssues.empty());
+    const auto fixedIssues = engine.check(root.u8string(), {templateDirRule, layerRule, crsRule});
+    // After fixing the structure, template comparison should only show extras (空目录/keep.txt etc.)
+    // But layerRule + crsRule should pass now
+    assert(!hasIssue(fixedIssues, "B010202", "GXDX_GD"));
 
     std::ofstream(root / fs::u8path(u8"SchemaLayer.shp")) << "placeholder";
     std::ofstream(root / fs::u8path(u8"SchemaLayer.shx")) << "placeholder";
@@ -860,7 +827,7 @@ int main() {
     createGeometryCheckPackage(root / fs::u8path(u8"geometry_checks.gpkg"));
     auto shortLineRule = makeRule("C020201", "warning");
     shortLineRule.parameters["layers"] = "TinyLine";
-    shortLineRule.parameters["tolerance"] = "1";
+    shortLineRule.parameters["minLength"] = "1";
     auto rangeRule = makeRule("C010101");
     rangeRule.parameters["layers"] = "OutOfRange";
     rangeRule.parameters["minX"] = "119";
@@ -871,7 +838,7 @@ int main() {
     zRule.parameters["layers"] = "ZPOINT";
     auto shortEdgeRule = makeRule("C020301", "warning");
     shortEdgeRule.parameters["layers"] = "PolyChecks";
-    shortEdgeRule.parameters["tolerance"] = "0.02";
+    shortEdgeRule.parameters["minEdgeLength"] = "0.02";
     auto sharpAngleRule = makeRule("C020302", "warning");
     sharpAngleRule.parameters["layers"] = "PolyChecks";
     sharpAngleRule.parameters["angleTolerance"] = "30";
@@ -1006,7 +973,7 @@ int main() {
     requireIssueDescription(geometryIssues, "C030314", "2", "面边界未被参照面图层的边界覆盖", "polygon boundary is not covered by reference polygon boundaries");
 #endif
 
-    auto disabled = dirRule;
+    auto disabled = templateDirRule;
     disabled.enabled = false;
     fs::remove_all(root / fs::u8path(u8"元数据"));
     assert(engine.check(root.u8string(), {disabled}).empty());

@@ -67,12 +67,14 @@ ExecutionPage::ExecutionPage(QWidget* parent) : QWidget(parent) {
 
     auto* taskRow = new QHBoxLayout();
     taskRow->setSpacing(10);
-    taskRow->addWidget(new QLabel("任务名称", setupCard));
-    taskNameEdit_ = new QLineEdit("标准化成果质检任务", setupCard);
-    taskRow->addWidget(taskNameEdit_, 1);
+    taskRow->addWidget(new QLabel("项目", setupCard));
+    projectCombo_ = new QComboBox(setupCard);
+    projectCombo_->setMinimumWidth(140);
+    connect(projectCombo_, QOverload<int>::of(&QComboBox::activated), this, [this](int) { refreshSchemeList(); });
+    taskRow->addWidget(projectCombo_);
     taskRow->addWidget(new QLabel("质检方案", setupCard));
     schemeCombo_ = new QComboBox(setupCard);
-    schemeCombo_->setMinimumWidth(180);
+    schemeCombo_->setMinimumWidth(200);
     connect(schemeCombo_, QOverload<int>::of(&QComboBox::activated), this, &ExecutionPage::onSchemeChanged);
     taskRow->addWidget(schemeCombo_, 1);
     templateLabel_ = new QLabel("", setupCard);
@@ -82,20 +84,19 @@ ExecutionPage::ExecutionPage(QWidget* parent) : QWidget(parent) {
 
     auto* pathRow = new QHBoxLayout();
     pathRow->setSpacing(10);
-    pathEdit_ = new QLineEdit(setupCard);
-    pathEdit_->setPlaceholderText("选择包含 FileGDB / Shapefile / GeoPackage 的成果目录");
-    pathRow->addWidget(pathEdit_, 1);
-    auto* browseButton = new QPushButton("浏览...", setupCard);
-    browseButton->setToolTip("选择包含 GIS 数据的成果目录");
-    connect(browseButton, &QPushButton::clicked, this, &ExecutionPage::chooseDatasetPath);
-    pathRow->addWidget(browseButton);
+    pathRow->addWidget(new QLabel("任务名称", setupCard));
+    taskNameEdit_ = new QLineEdit("标准化成果质检任务", setupCard);
+    pathRow->addWidget(taskNameEdit_, 1);
+    pathRow->addWidget(new QLabel("数据源", setupCard));
+    pathLabel_ = new QLabel(setupCard);
+    pathLabel_->setObjectName("SubtleText");
+    pathLabel_->setMinimumWidth(200);
+    pathRow->addWidget(pathLabel_, 1);
     runButton_ = new QPushButton("开始执行质检", setupCard);
     runButton_->setObjectName("PrimaryButton");
-    runButton_->setToolTip("加载内部规则配置，对成果目录执行完整质检");
     connect(runButton_, &QPushButton::clicked, this, &ExecutionPage::runQualityCheck);
     pathRow->addWidget(runButton_);
     cancelButton_ = new QPushButton("取消", setupCard);
-    cancelButton_->setToolTip("取消正在执行的质检任务");
     cancelButton_->setEnabled(false);
     connect(cancelButton_, &QPushButton::clicked, this, &ExecutionPage::cancelQualityCheck);
     pathRow->addWidget(cancelButton_);
@@ -147,29 +148,26 @@ ExecutionPage::ExecutionPage(QWidget* parent) : QWidget(parent) {
     logLayout->addWidget(progress_);
     layout->addWidget(logCard);
 
+    refreshProjectList();
     refreshSchemeList();
-    appendLog("就绪，选择质检方案后点击【开始执行质检】。");
+    appendLog("就绪，选择项目和方案后点击【开始执行质检】。");
 }
 
 void ExecutionPage::setDatasetPath(const QString& path) {
-    if (!path.isEmpty() && pathEdit_) {
-        pathEdit_->setText(path);
+    if (!path.isEmpty() && pathLabel_) {
+        pathLabel_->setText(path);
         appendLog("已接收数据导入页选择的成果目录：" + path);
     }
 }
 
 void ExecutionPage::chooseDatasetPath() {
-    const QString dir = QFileDialog::getExistingDirectory(this, "选择成果目录", pathEdit_->text());
-    if (!dir.isEmpty()) {
-        pathEdit_->setText(dir);
-        appendLog("已选择成果目录：" + dir);
-    }
+    // Data path now comes from scheme — no manual browse
 }
 
 void ExecutionPage::runQualityCheck() {
-    const QString inputPath = pathEdit_->text().trimmed();
+    const QString inputPath = pathLabel_ ? pathLabel_->text().trimmed() : "";
     if (inputPath.isEmpty()) {
-        QMessageBox::warning(this, "缺少成果目录", "请先选择需要质检的成果目录。");
+        QMessageBox::warning(this, "缺少数据源", "请先选择质检方案，\n方案必须绑定数据源目录才能执行质检。");
         return;
     }
 
@@ -259,8 +257,8 @@ void ExecutionPage::onWorkerError(const QString& errorMessage) {
 void ExecutionPage::setRunning(bool running) {
     if (runButton_) runButton_->setEnabled(!running);
     if (cancelButton_) cancelButton_->setEnabled(running);
-    if (pathEdit_) pathEdit_->setEnabled(!running);
     if (taskNameEdit_) taskNameEdit_->setEnabled(!running);
+    if (projectCombo_) projectCombo_->setEnabled(!running);
     if (schemeCombo_) schemeCombo_->setEnabled(!running);
 }
 
@@ -301,24 +299,36 @@ void ExecutionPage::refreshSchemeList() {
     if (!schemeCombo_) return;
     schemeCombo_->clear();
 
-    // Add internal active config as first option
-    schemeCombo_->addItem(QStringLiteral("\u5185\u7f6e\u914d\u7f6e"), "");
-
-    // Scan project scheme dirs
-    const QString baseDir = QDir::currentPath() + "/data/projects";
-    QDir base(baseDir);
-    if (base.exists()) {
-        for (const auto& projDir : base.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
-            QDir proj(baseDir + "/" + projDir);
-            for (const auto& entry : proj.entryList({"*.json"}, QDir::Files)) {
-                const QString fullPath = proj.absoluteFilePath(entry);
-                const QString label = projDir + "/" + entry.chopped(5);
-                schemeCombo_->addItem(label, fullPath);
-            }
+    const QString projName = projectCombo_ ? projectCombo_->currentText() : "";
+    const QString projDir = projectsBaseDir() + "/" + (projName.isEmpty() ? QStringLiteral("\u9ed8\u8ba4\u9879\u76ee") : projName);
+    QDir dir(projDir);
+    if (dir.exists()) {
+        for (const auto& entry : dir.entryList({"*.json"}, QDir::Files, QDir::Name)) {
+            const QString fullPath = dir.absoluteFilePath(entry);
+            schemeCombo_->addItem(entry.chopped(5), fullPath);
         }
     }
 
-    templateLabel_->setText(QString("(%1 个方案可用)").arg(schemeCombo_->count()));
+    schemeCombo_->addItem(QStringLiteral("\u5185\u7f6e\u914d\u7f6e"), "");
+    templateLabel_->setText(QString("(%1 \u4e2a\u65b9\u6848)").arg(schemeCombo_->count()));
+    if (schemeCombo_->count() > 0) onSchemeChanged(0);
+}
+
+void ExecutionPage::refreshProjectList() {
+    if (!projectCombo_) return;
+    projectCombo_->clear();
+    const QDir base(projectsBaseDir());
+    QDir().mkpath(projectsBaseDir());
+    for (const auto& d : base.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name)) {
+        projectCombo_->addItem(d);
+    }
+    if (projectCombo_->count() == 0) {
+        projectCombo_->addItem(QStringLiteral("\u9ed8\u8ba4\u9879\u76ee"));
+    }
+}
+
+QString ExecutionPage::projectsBaseDir() {
+    return QDir::currentPath() + "/data/projects";
 }
 
 void ExecutionPage::onSchemeChanged(int index) {
@@ -326,16 +336,15 @@ void ExecutionPage::onSchemeChanged(int index) {
     const QString schemePath = schemeCombo_->itemData(index).toString();
     if (schemePath.isEmpty()) {
         templateLabel_->setText(QStringLiteral("\u5185\u7f6e\u914d\u7f6e"));
+        if (pathLabel_) pathLabel_->setText("");
         return;
     }
     try {
         RuleTemplateLoader loader;
         const auto templ = loader.loadFromFile(schemePath.toStdString());
-        templateLabel_->setText(QString("%1 条规则").arg(templ.rules.size()));
-        // Auto-fill data source path from scheme
-        if (!templ.dataSourcePath.empty() && pathEdit_) {
-            pathEdit_->setText(QString::fromStdString(templ.dataSourcePath));
-            appendLog("方案数据源路径：" + QString::fromStdString(templ.dataSourcePath));
+        templateLabel_->setText(QString("%1 \u6761\u89c4\u5219").arg(templ.rules.size()));
+        if (pathLabel_) {
+            pathLabel_->setText(QString::fromStdString(templ.dataSourcePath));
         }
     } catch (...) {
         templateLabel_->setText(QStringLiteral("\u52a0\u8f7d\u5931\u8d25"));

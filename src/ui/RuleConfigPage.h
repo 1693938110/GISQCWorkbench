@@ -25,7 +25,6 @@ private slots:
     void onProjectChanged();
     void newScheme();
     void saveScheme();
-    void saveSchemeAs();
     void deleteScheme();
     void loadSelectedScheme();
     void resetToDefault();
@@ -58,17 +57,15 @@ private:
 
     QComboBox* projectCombo_{};
     QComboBox* schemeCombo_{};
-    QLineEdit* schemeNameEdit_{};
     QTreeWidget* categoryTree_{};
     QTableWidget* availableTable_{};
     QTableWidget* schemeTable_{};
     QLineEdit* toleranceEdit_{};
-    QLineEdit* dataSourceEdit_{};
+    QComboBox* dataSourceCombo_{};
     QStringList cachedLayerNames_;
     QLabel* detailLabel_{};
     QWidget* paramPanel_{};
     QFormLayout* paramForm_{};
-    QLabel* sourceLabel_{};
     QLabel* schemeCountLabel_{};
 };
 

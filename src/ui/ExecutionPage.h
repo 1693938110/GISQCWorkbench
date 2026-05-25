@@ -42,10 +42,13 @@ private:
     void setRunning(bool running);
     std::string defaultRulesPath() const;
     void refreshSchemeList();
+    void refreshProjectList();
+    static QString projectsBaseDir();
 
+    QComboBox* projectCombo_{};
     QComboBox* schemeCombo_{};
     QLineEdit* taskNameEdit_{};
-    QLineEdit* pathEdit_{};
+    QLabel* pathLabel_{};
     QLabel* templateLabel_{};
     QLabel* summaryLabel_{};
     QTableWidget* issuePreviewTable_{};

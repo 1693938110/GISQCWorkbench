@@ -177,7 +177,7 @@ QWidget* MainWindow::createHeader() {
     pageTitle_->setObjectName("PageTitle");
     titleLayout->addWidget(pageTitle_);
 
-    pageSubtitle_ = new QLabel("面向 Win10+ 的专业 GIS 数据质量检查桌面客户端", header);
+    pageSubtitle_ = new QLabel("", header);
     pageSubtitle_->setObjectName("PageSubtitle");
     titleLayout->addWidget(pageSubtitle_);
 

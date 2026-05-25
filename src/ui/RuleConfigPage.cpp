@@ -49,9 +49,8 @@ QString friendlyParamLabel(const std::string& key) {
         {"layers", "检查图层"},
         {"sourceLayer", "源图层"},
         {"referenceLayer", "参照图层"},
-        {"tolerance", "容差（米）"},
-        {"angleTolerance", "角度容差（度）"},
-        {"areaTolerance", "面积容差（㎡）"},
+        {"angleTolerance", "尖锐角阈值（度）"},
+        {"areaTolerance", "微小面阈值（㎡）"},
         {"wkid", "坐标系"},
         {"name", "坐标系名称"},
         {"minNodes", "最少节点数"},
@@ -126,7 +125,7 @@ RuleConfigPage::RuleConfigPage(QWidget* parent) : QWidget(parent) {
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(6);
 
-    // ---- Compact toolbar: project | scheme | actions ----
+    // ---- Compact toolbar: project | scheme | actions | tolerance ----
     auto* toolbar = new QHBoxLayout();
     toolbar->setSpacing(6);
     toolbar->setContentsMargins(0, 0, 0, 0);
@@ -158,11 +157,6 @@ RuleConfigPage::RuleConfigPage(QWidget* parent) : QWidget(parent) {
     connect(schemeCombo_, QOverload<int>::of(&QComboBox::activated), this, &RuleConfigPage::loadSelectedScheme);
     toolbar->addWidget(schemeCombo_);
 
-    schemeNameEdit_ = new QLineEdit(this);
-    schemeNameEdit_->setPlaceholderText(QStringLiteral("\u65b9\u6848\u540d\u79f0"));
-    schemeNameEdit_->setMaximumWidth(180);
-    toolbar->addWidget(schemeNameEdit_);
-
     auto* newBtn = new QPushButton(QStringLiteral("\u65b0\u5efa"), this);
     connect(newBtn, &QPushButton::clicked, this, &RuleConfigPage::newScheme);
     toolbar->addWidget(newBtn);
@@ -170,9 +164,6 @@ RuleConfigPage::RuleConfigPage(QWidget* parent) : QWidget(parent) {
     saveBtn->setObjectName("PrimaryButton");
     connect(saveBtn, &QPushButton::clicked, this, &RuleConfigPage::saveScheme);
     toolbar->addWidget(saveBtn);
-    auto* saveAsBtn = new QPushButton(QStringLiteral("\u53e6\u5b58\u4e3a"), this);
-    connect(saveAsBtn, &QPushButton::clicked, this, &RuleConfigPage::saveSchemeAs);
-    toolbar->addWidget(saveAsBtn);
     auto* delBtn = new QPushButton(QStringLiteral("\u5220\u9664"), this);
     connect(delBtn, &QPushButton::clicked, this, &RuleConfigPage::deleteScheme);
     toolbar->addWidget(delBtn);
@@ -190,9 +181,6 @@ RuleConfigPage::RuleConfigPage(QWidget* parent) : QWidget(parent) {
     toolbar->addWidget(toleranceEdit_);
 
     toolbar->addStretch();
-    sourceLabel_ = new QLabel(this);
-    sourceLabel_->setObjectName("SubtleText");
-    toolbar->addWidget(sourceLabel_);
     mainLayout->addLayout(toolbar);
 
     // ---- Data source row ----
@@ -200,9 +188,11 @@ RuleConfigPage::RuleConfigPage(QWidget* parent) : QWidget(parent) {
     dsRow->setSpacing(6);
     dsRow->setContentsMargins(0, 0, 0, 0);
     dsRow->addWidget(new QLabel(QStringLiteral("\u6570\u636e\u6e90"), this));
-    dataSourceEdit_ = new QLineEdit(this);
-    dataSourceEdit_->setPlaceholderText(QStringLiteral("\u9009\u62e9 GDB/\u6570\u636e\u76ee\u5f55\uff0c\u7528\u4e8e\u8bfb\u53d6\u56fe\u5c42\u5217\u8868"));
-    dsRow->addWidget(dataSourceEdit_, 1);
+    dataSourceCombo_ = new QComboBox(this);
+    dataSourceCombo_->setEditable(true);
+    dataSourceCombo_->setMinimumWidth(300);
+    dataSourceCombo_->setPlaceholderText(QStringLiteral("\u9009\u62e9\u6216\u6d4f\u89c8\u6570\u636e\u76ee\u5f55"));
+    dsRow->addWidget(dataSourceCombo_, 1);
     auto* browseBtn = new QPushButton(QStringLiteral("\u6d4f\u89c8..."), this);
     connect(browseBtn, &QPushButton::clicked, this, &RuleConfigPage::browseDataSource);
     dsRow->addWidget(browseBtn);
@@ -292,6 +282,7 @@ RuleConfigPage::RuleConfigPage(QWidget* parent) : QWidget(parent) {
     // Interactive parameter panel
     auto* detailBox = new QGroupBox(QStringLiteral("\u53c2\u6570\u8bbe\u7f6e"), this);
     detailBox->setObjectName("Card");
+    detailBox->setFixedHeight(200);
     auto* detailOuter = new QVBoxLayout(detailBox);
     detailOuter->setContentsMargins(8, 8, 8, 8);
     detailOuter->setSpacing(4);
@@ -331,20 +322,13 @@ void RuleConfigPage::loadMasterRules() {
 void RuleConfigPage::loadScheme() {
     RuleTemplateStore store;
     scheme_ = store.loadActive();
-    if (schemeNameEdit_) {
-        schemeNameEdit_->setText(QString::fromStdString(
-            scheme_.templateName.empty() ? "GIS 数据质量检查配置" : scheme_.templateName));
-    }
     if (toleranceEdit_) {
         toleranceEdit_->setText(QString::fromStdString(
             scheme_.globalTolerance.empty() ? "0.001" : scheme_.globalTolerance));
     }
-    if (dataSourceEdit_) {
-        dataSourceEdit_->setText(QString::fromStdString(scheme_.dataSourcePath));
+    if (dataSourceCombo_) {
+        dataSourceCombo_->setCurrentText(QString::fromStdString(scheme_.dataSourcePath));
         if (!scheme_.dataSourcePath.empty()) reloadLayerNames();
-    }
-    if (sourceLabel_) {
-        sourceLabel_->setText(QString::fromStdString(store.activeTemplatePath()));
     }
 }
 
@@ -414,13 +398,16 @@ void RuleConfigPage::refreshSchemeTable() {
 // ---- Slots ----
 
 void RuleConfigPage::newScheme() {
+    bool ok = false;
+    const QString name = QInputDialog::getText(this,
+        QStringLiteral("\u65b0\u5efa\u65b9\u6848"),
+        QStringLiteral("\u8bf7\u8f93\u5165\u65b9\u6848\u540d\u79f0\uff1a"),
+        QLineEdit::Normal, "", &ok);
+    if (!ok || name.trimmed().isEmpty()) return;
+
     scheme_.rules.clear();
     scheme_.templateCode = "GIS_QC_USER_NEW";
-    scheme_.templateName = "";
-    if (schemeNameEdit_) {
-        schemeNameEdit_->clear();
-        schemeNameEdit_->setFocus();
-    }
+    scheme_.templateName = name.trimmed().toStdString();
     refreshSchemeTable();
     refreshAvailableTable();
 }
@@ -432,17 +419,27 @@ void RuleConfigPage::saveScheme() {
         auto* combo = qobject_cast<QComboBox*>(schemeTable_->cellWidget(r, 3));
         if (combo) rule.severity = combo->currentText().toStdString();
     }
-    const QString name = schemeNameEdit_ ? schemeNameEdit_->text().trimmed() : "";
-    scheme_.templateName = name.isEmpty() ? "GIS 数据质量检查配置" : name.toStdString();
+
+    // Determine scheme name: from combo selection or prompt
+    QString name = schemeCombo_ ? schemeCombo_->currentText().trimmed() : "";
+    if (name.isEmpty()) {
+        bool ok = false;
+        name = QInputDialog::getText(this,
+            QStringLiteral("\u4fdd\u5b58\u65b9\u6848"),
+            QStringLiteral("\u8bf7\u8f93\u5165\u65b9\u6848\u540d\u79f0\uff1a"),
+            QLineEdit::Normal, QString::fromStdString(scheme_.templateName), &ok);
+        if (!ok || name.trimmed().isEmpty()) return;
+        name = name.trimmed();
+    }
+    scheme_.templateName = name.toStdString();
     scheme_.templateCode = "GIS_QC_INTERNAL_USER";
     if (toleranceEdit_) {
         scheme_.globalTolerance = toleranceEdit_->text().trimmed().toStdString();
     }
-    if (dataSourceEdit_) {
-        scheme_.dataSourcePath = dataSourceEdit_->text().trimmed().toStdString();
+    if (dataSourceCombo_) {
+        scheme_.dataSourcePath = dataSourceCombo_->currentText().trimmed().toStdString();
     }
 
-    // All rules in the scheme are enabled
     for (auto& rule : scheme_.rules) {
         rule.enabled = true;
     }
@@ -451,19 +448,20 @@ void RuleConfigPage::saveScheme() {
         RuleTemplateStore store;
         store.saveUserTemplate(scheme_);
 
-        // Also save to project scheme library
         const QString dir = currentProjectDir();
         QDir().mkpath(dir);
-        const QString schemeName = QString::fromStdString(scheme_.templateName);
-        if (!schemeName.isEmpty()) {
-            const std::string libPath = (dir + "/" + schemeName + ".json").toStdString();
-            RuleTemplateStore::saveToFile(scheme_, libPath);
-        }
+        const std::string libPath = (dir + "/" + name + ".json").toStdString();
+        RuleTemplateStore::saveToFile(scheme_, libPath);
 
-        if (sourceLabel_) sourceLabel_->setText(QString::fromStdString(store.userTemplatePath()));
+        // Refresh combo without triggering loadSelectedScheme
+        const bool blocked = schemeCombo_->signalsBlocked();
+        schemeCombo_->blockSignals(true);
         refreshSchemeLibrary();
-        QMessageBox::information(this, QStringLiteral("\u4fdd\u5b58\u5b8c\u6210"),
-            QString(QStringLiteral("\u914d\u7f6e\u65b9\u6848\u5df2\u4fdd\u5b58\uff0c\u5171 %1 \u6761\u8d28\u68c0\u9879\u3002")).arg(scheme_.rules.size()));
+        schemeCombo_->blockSignals(blocked);
+
+        // Inline feedback instead of QMessageBox to avoid window jitter
+        auto* lbl = findChild<QLabel*>("dsLayerCount");
+        if (lbl) lbl->setText(QString("\u2714 \u5df2\u4fdd\u5b58 (%1 \u6761\u89c4\u5219)").arg(scheme_.rules.size()));
     } catch (const std::exception& ex) {
         QMessageBox::critical(this, QStringLiteral("\u4fdd\u5b58\u5931\u8d25"), QString::fromUtf8(ex.what()));
     }
@@ -552,42 +550,6 @@ void RuleConfigPage::refreshProjectList() {
 
 // ---- Scheme management ----
 
-void RuleConfigPage::saveSchemeAs() {
-    bool ok = false;
-    const QString name = QInputDialog::getText(this,
-        QStringLiteral("\u53e6\u5b58\u4e3a\u65b9\u6848"),
-        QStringLiteral("\u8bf7\u8f93\u5165\u65b9\u6848\u540d\u79f0\uff1a"),
-        QLineEdit::Normal,
-        schemeNameEdit_ ? schemeNameEdit_->text() : "", &ok);
-    if (!ok || name.trimmed().isEmpty()) return;
-
-    // Collect current state
-    for (int r = 0; r < schemeTable_->rowCount() && r < static_cast<int>(scheme_.rules.size()); ++r) {
-        auto& rule = scheme_.rules[static_cast<std::size_t>(r)];
-        auto* combo = qobject_cast<QComboBox*>(schemeTable_->cellWidget(r, 3));
-        if (combo) rule.severity = combo->currentText().toStdString();
-    }
-    scheme_.templateName = name.trimmed().toStdString();
-    scheme_.templateCode = "GIS_QC_SCHEME_" + name.trimmed().toStdString();
-    if (toleranceEdit_) scheme_.globalTolerance = toleranceEdit_->text().trimmed().toStdString();
-    if (dataSourceEdit_) scheme_.dataSourcePath = dataSourceEdit_->text().trimmed().toStdString();
-    for (auto& rule : scheme_.rules) rule.enabled = true;
-
-    const QString dir = currentProjectDir();
-    QDir().mkpath(dir);
-    const std::string path = (dir + "/" + name.trimmed() + ".json").toStdString();
-    try {
-        RuleTemplateStore::saveToFile(scheme_, path);
-        if (schemeNameEdit_) schemeNameEdit_->setText(name.trimmed());
-        if (sourceLabel_) sourceLabel_->setText(QString::fromStdString(path));
-        refreshSchemeLibrary();
-        QMessageBox::information(this, QStringLiteral("\u4fdd\u5b58\u6210\u529f"),
-            QStringLiteral("\u65b9\u6848\u5df2\u4fdd\u5b58\u5230\u9879\u76ee\u65b9\u6848\u5e93\u3002"));
-    } catch (const std::exception& ex) {
-        QMessageBox::critical(this, QStringLiteral("\u4fdd\u5b58\u5931\u8d25"), QString::fromUtf8(ex.what()));
-    }
-}
-
 void RuleConfigPage::deleteScheme() {
     if (!schemeCombo_ || schemeCombo_->currentIndex() < 0) return;
     const QString selected = schemeCombo_->currentText();
@@ -619,14 +581,12 @@ void RuleConfigPage::loadSelectedScheme() {
     try {
         RuleTemplateLoader loader;
         scheme_ = loader.loadFromFile(path.toStdString());
-        if (schemeNameEdit_) schemeNameEdit_->setText(QString::fromStdString(scheme_.templateName));
         if (toleranceEdit_) toleranceEdit_->setText(QString::fromStdString(
             scheme_.globalTolerance.empty() ? "0.001" : scheme_.globalTolerance));
-        if (dataSourceEdit_) {
-            dataSourceEdit_->setText(QString::fromStdString(scheme_.dataSourcePath));
+        if (dataSourceCombo_) {
+            dataSourceCombo_->setCurrentText(QString::fromStdString(scheme_.dataSourcePath));
             if (!scheme_.dataSourcePath.empty()) reloadLayerNames();
         }
-        if (sourceLabel_) sourceLabel_->setText(path);
         refreshSchemeTable();
         refreshAvailableTable();
     } catch (const std::exception& ex) {
@@ -722,18 +682,32 @@ void RuleConfigPage::removeSelectedRules() {
 }
 
 void RuleConfigPage::browseDataSource() {
-    // Support selecting a .gdb folder or a regular directory
     const QString path = QFileDialog::getExistingDirectory(this,
         QStringLiteral("\u9009\u62e9\u6570\u636e\u6e90\u76ee\u5f55\uff08GDB \u6216\u6570\u636e\u6587\u4ef6\u5939\uff09"),
-        dataSourceEdit_ ? dataSourceEdit_->text() : "");
+        dataSourceCombo_ ? dataSourceCombo_->currentText() : "");
     if (path.isEmpty()) return;
-    if (dataSourceEdit_) dataSourceEdit_->setText(path);
+
+    // Warn when switching data source
+    if (dataSourceCombo_ && !dataSourceCombo_->currentText().trimmed().isEmpty()
+        && dataSourceCombo_->currentText().trimmed() != path) {
+        if (QMessageBox::question(this, QStringLiteral("\u66f4\u6362\u6570\u636e\u6e90"),
+                QStringLiteral("\u66f4\u6362\u6570\u636e\u6e90\u540e\uff0c\u89c4\u5219\u53c2\u6570\u4e2d\u7684\u56fe\u5c42\u9009\u62e9\u7b49\u914d\u7f6e\u53ef\u80fd\u9700\u8981\u91cd\u65b0\u8bbe\u7f6e\u3002\n\u662f\u5426\u7ee7\u7eed\uff1f")) != QMessageBox::Yes) {
+            return;
+        }
+    }
+
+    if (dataSourceCombo_) {
+        if (dataSourceCombo_->findText(path) < 0) {
+            dataSourceCombo_->addItem(path);
+        }
+        dataSourceCombo_->setCurrentText(path);
+    }
     reloadLayerNames();
 }
 
 void RuleConfigPage::reloadLayerNames() {
     cachedLayerNames_.clear();
-    const QString dsPath = dataSourceEdit_ ? dataSourceEdit_->text().trimmed() : "";
+    const QString dsPath = dataSourceCombo_ ? dataSourceCombo_->currentText().trimmed() : "";
     if (dsPath.isEmpty()) return;
 
     // Use DatasetScanner + GDAL to enumerate all layer names
@@ -811,6 +785,9 @@ void RuleConfigPage::updateDetailPanel() {
 
     // Build specialized form fields per parameter
     for (const auto& [key, value] : rule.parameters) {
+        // Global tolerance handles geometry tolerance — skip per-rule tolerance
+        if (key == "tolerance") continue;
+
         const QString qval = QString::fromStdString(value);
         const QString qkey = QString::fromStdString(key);
 

@@ -6,7 +6,6 @@
 #include "ResultsPage.h"
 #include "RuleConfigPage.h"
 #include "SettingsPage.h"
-#include "TemplateManagePage.h"
 
 #include <QApplication>
 #include <QDockWidget>
@@ -53,14 +52,12 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     auto* ruleConfigPage = ruleConfigPage_;
     executionPage_ = new ExecutionPage(content);
     resultsPage_ = new ResultsPage(content);
-    auto* templatePage = new TemplateManagePage(content);
     auto* settingsPage = new SettingsPage(content);
 
     // HomePage signals
     connect(homePage_, &HomePage::requestNewTask, this, [this]() { navigateToPage(1); });
     connect(homePage_, &HomePage::requestRuleConfig, this, [this]() { navigateToPage(2); });
     connect(homePage_, &HomePage::requestResults, this, [this]() { navigateToPage(4); });
-    connect(homePage_, &HomePage::requestTemplateManage, this, [this]() { navigateToPage(5); });
 
     // DashboardPage (data import) signals
     connect(dataImportPage, &DashboardPage::datasetPathChanged, this, &MainWindow::rememberDatasetPath);
@@ -77,8 +74,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     pages_->addWidget(ruleConfigPage);    // 2 - 规则配置
     pages_->addWidget(executionPage_);    // 3 - 执行质检
     pages_->addWidget(resultsPage_);      // 4 - 结果中心
-    pages_->addWidget(templatePage);      // 5 - 模板管理
-    pages_->addWidget(settingsPage);      // 6 - 系统设置
+    pages_->addWidget(settingsPage);      // 5 - 系统设置
     contentLayout->addWidget(pages_, 1);
 
     rootLayout->addWidget(content, 1);
@@ -124,8 +120,7 @@ void MainWindow::setupMenuBar() {
     connect(logAction, &QAction::toggled, this, &MainWindow::toggleLogDock);
 
     auto* toolsMenu = mb->addMenu(QStringLiteral("\u5de5\u5177(&T)"));
-    toolsMenu->addAction(QStringLiteral("\u6a21\u677f\u7ba1\u7406"), this, [this]() { navigateToPage(5); });
-    toolsMenu->addAction(QStringLiteral("\u7cfb\u7edf\u8bbe\u7f6e"), this, [this]() { navigateToPage(6); });
+    toolsMenu->addAction(QStringLiteral("\u7cfb\u7edf\u8bbe\u7f6e"), this, [this]() { navigateToPage(5); });
 
     auto* helpMenu = mb->addMenu(QStringLiteral("\u5e2e\u52a9(&H)"));
     helpMenu->addAction(QStringLiteral("\u5173\u4e8e GIS \u8d28\u68c0\u5de5\u4f5c\u53f0"));
@@ -156,7 +151,6 @@ QWidget* MainWindow::createSidebar() {
         QStringLiteral("  \u89c4\u5219\u914d\u7f6e"),
         QStringLiteral("  \u6267\u884c\u8d28\u68c0"),
         QStringLiteral("  \u7ed3\u679c\u4e2d\u5fc3"),
-        QStringLiteral("  \u6a21\u677f\u7ba1\u7406"),
         QStringLiteral("  \u7cfb\u7edf\u8bbe\u7f6e")
     });
     layout->addWidget(navList_, 1);
@@ -225,7 +219,6 @@ void MainWindow::updateHeaderForPage(int index) {
         {"规则配置", "规则启停、参数、严重级别全部在软件内维护，不再依赖 Excel 配置表"},
         {"执行质检", "加载内部规则配置，对成果目录执行完整质检"},
         {"结果中心", "查看问题清单、统计通过率，导出 CSV / HTML / Excel / Word 报告"},
-        {"模板管理", "维护项目规则模板和默认业务参数"},
         {"系统设置", "查看运行环境、GIS 库状态和交付包配置"}
     };
     if (index >= 0 && index < static_cast<int>(std::size(headers))) {

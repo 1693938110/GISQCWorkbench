@@ -16,7 +16,6 @@ signals:
     void requestNewTask();
     void requestRuleConfig();
     void requestResults();
-    void requestTemplateManage();
 
 public:
     void refreshData();

@@ -114,14 +114,11 @@ HomePage::HomePage(QWidget* parent) : QWidget(parent) {
         "问题清单、统计与报告导出", "结果中心", this);
     actionsRow->addWidget(resultCard);
 
-    auto* templateCard = makeActionCard("\u25A2", "模板管理",
-        "导入导出 JSON 规则模板", "管理模板", this);
-    actionsRow->addWidget(templateCard);
 
     layout->addLayout(actionsRow);
 
     // Connect action buttons
-    for (auto* card : {newTaskCard, ruleCard, resultCard, templateCard}) {
+    for (auto* card : {newTaskCard, ruleCard, resultCard}) {
         auto* button = card->findChild<QPushButton*>();
         if (button) {
             const QString role = button->property("actionRole").toString();
@@ -131,8 +128,6 @@ HomePage::HomePage(QWidget* parent) : QWidget(parent) {
                 connect(button, &QPushButton::clicked, this, &HomePage::requestRuleConfig);
             } else if (role == "查看质检结果") {
                 connect(button, &QPushButton::clicked, this, &HomePage::requestResults);
-            } else if (role == "模板管理") {
-                connect(button, &QPushButton::clicked, this, &HomePage::requestTemplateManage);
             }
         }
     }

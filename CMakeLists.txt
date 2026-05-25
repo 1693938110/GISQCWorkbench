@@ -164,8 +164,6 @@ if(GISQC_BUILD_QT_APP)
         src/ui/QualityCheckWorker.h
         src/ui/ResultsPage.cpp
         src/ui/ResultsPage.h
-        src/ui/TemplateManagePage.cpp
-        src/ui/TemplateManagePage.h
         src/ui/SettingsPage.cpp
         src/ui/SettingsPage.h
         src/resources/resources.qrc

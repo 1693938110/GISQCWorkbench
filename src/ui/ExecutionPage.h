@@ -35,11 +35,13 @@ private slots:
     void onWorkerProgress(int percent, const QString& message);
     void onWorkerFinished(const TaskSessionReport& report);
     void onWorkerError(const QString& errorMessage);
+    void onWorkerCancelled();
 
 private:
     void appendLog(const QString& message);
     void renderReportSummary(const TaskSessionReport& report);
     void setRunning(bool running);
+    void cleanupWorker();
     std::string defaultRulesPath() const;
     void refreshSchemeList();
     void refreshProjectList();

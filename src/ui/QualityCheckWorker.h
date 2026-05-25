@@ -29,6 +29,7 @@ signals:
     void progressChanged(int percent, const QString& message);
     void finished(const TaskSessionReport& report);
     void errorOccurred(const QString& errorMessage);
+    void cancelled();
 
 private:
     std::string taskName_;

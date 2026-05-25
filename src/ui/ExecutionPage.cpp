@@ -171,10 +171,8 @@ void ExecutionPage::runQualityCheck() {
         return;
     }
 
-    if (workerThread_ && workerThread_->isRunning()) {
-        QMessageBox::information(this, "任务进行中", "质检任务正在执行，请等待完成或取消当前任务。");
-        return;
-    }
+    // Clean up any previous worker/thread before starting a new one
+    cleanupWorker();
 
     try {
         RuleTemplate templ;
@@ -206,8 +204,10 @@ void ExecutionPage::runQualityCheck() {
         connect(worker_, &QualityCheckWorker::progressChanged, this, &ExecutionPage::onWorkerProgress);
         connect(worker_, &QualityCheckWorker::finished, this, &ExecutionPage::onWorkerFinished);
         connect(worker_, &QualityCheckWorker::errorOccurred, this, &ExecutionPage::onWorkerError);
+        connect(worker_, &QualityCheckWorker::cancelled, this, &ExecutionPage::onWorkerCancelled);
         connect(worker_, &QualityCheckWorker::finished, workerThread_, &QThread::quit);
         connect(worker_, &QualityCheckWorker::errorOccurred, workerThread_, &QThread::quit);
+        connect(worker_, &QualityCheckWorker::cancelled, workerThread_, &QThread::quit);
         connect(workerThread_, &QThread::finished, worker_, &QObject::deleteLater);
         connect(workerThread_, &QThread::finished, workerThread_, &QObject::deleteLater);
         connect(workerThread_, &QThread::finished, this, [this]() {
@@ -227,6 +227,7 @@ void ExecutionPage::runQualityCheck() {
 void ExecutionPage::cancelQualityCheck() {
     if (worker_) {
         worker_->requestCancel();
+        if (cancelButton_) cancelButton_->setEnabled(false);
         appendLog("正在取消质检任务...");
     }
 }
@@ -351,12 +352,29 @@ void ExecutionPage::onSchemeChanged(int index) {
     }
 }
 
-ExecutionPage::~ExecutionPage() {
-    if (workerThread_ && workerThread_->isRunning()) {
-        if (worker_) worker_->requestCancel();
-        workerThread_->quit();
-        workerThread_->wait(3000);
+void ExecutionPage::onWorkerCancelled() {
+    setRunning(false);
+    progress_->setValue(0);
+    appendLog("质检任务已取消。");
+}
+
+void ExecutionPage::cleanupWorker() {
+    if (workerThread_) {
+        if (workerThread_->isRunning()) {
+            if (worker_) worker_->requestCancel();
+            workerThread_->quit();
+            workerThread_->wait(5000);
+        }
+        // deleteLater connections handle cleanup, but ensure pointers are safe
+        if (workerThread_ && !workerThread_->isRunning()) {
+            worker_ = nullptr;
+            workerThread_ = nullptr;
+        }
     }
+}
+
+ExecutionPage::~ExecutionPage() {
+    cleanupWorker();
 }
 
 } // namespace gisqc

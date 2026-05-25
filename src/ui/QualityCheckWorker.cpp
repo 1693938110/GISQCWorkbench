@@ -5,6 +5,7 @@
 #include "../core/RuleTemplateStore.h"
 #include "../core/TaskHistoryStore.h"
 
+#include <chrono>
 #include <filesystem>
 
 #ifdef _WIN32
@@ -33,11 +34,20 @@ std::filesystem::path pathFromUtf8(const std::string& path) {
 #endif
 }
 
+std::string formatElapsed(double seconds) {
+    if (seconds < 1.0) return std::to_string(static_cast<int>(seconds * 1000)) + " ms";
+    if (seconds < 60.0) return std::to_string(static_cast<int>(seconds)) + " s";
+    const int mins = static_cast<int>(seconds) / 60;
+    const int secs = static_cast<int>(seconds) % 60;
+    return std::to_string(mins) + "m " + std::to_string(secs) + "s";
+}
+
 } // namespace
 
 QualityCheckWorker::QualityCheckWorker(QObject* parent) : QObject(parent) {}
 
 void QualityCheckWorker::process() {
+    const auto startTime = std::chrono::steady_clock::now();
     try {
         TaskSessionReport report{TaskModel::create(taskName_, inputPath_), {}, {}, {}, {}};
         report.logs.push_back("创建质检任务：" + taskName_);
@@ -52,10 +62,7 @@ void QualityCheckWorker::process() {
             return;
         }
 
-        if (cancelled_.load()) {
-            emit errorOccurred("用户已取消质检。");
-            return;
-        }
+        if (cancelled_.load()) { emit cancelled(); return; }
 
         report.task.start();
         emit progressChanged(10, QString::fromUtf8("开始扫描成果目录..."));
@@ -67,10 +74,7 @@ void QualityCheckWorker::process() {
         report.task.markReady();
         report.logs.push_back("扫描完成，发现数据源 " + std::to_string(report.scan.sourceCount) + " 个");
 
-        if (cancelled_.load()) {
-            emit errorOccurred("用户已取消质检。");
-            return;
-        }
+        if (cancelled_.load()) { emit cancelled(); return; }
 
         emit progressChanged(30, QString::fromUtf8("扫描完成，开始执行规则检查..."));
 
@@ -84,21 +88,34 @@ void QualityCheckWorker::process() {
             }
             report.logs.push_back("应用全局容差：" + globalTolerance_ + "（未单独配置 tolerance 的规则）");
         }
-        report.logs.push_back("开始执行规则检查，启用规则 " + std::to_string(effectiveRules.size()) + " 条");
+        const int totalRules = static_cast<int>(effectiveRules.size());
+        report.logs.push_back("开始执行规则检查，启用规则 " + std::to_string(totalRules) + " 条");
 
+        // Execute rules one-by-one for cancel checks and per-rule progress
         RuleCheckEngine engine;
-        report.issues = engine.check(inputPath_, effectiveRules);
+        for (int ri = 0; ri < totalRules; ++ri) {
+            if (cancelled_.load()) { emit cancelled(); return; }
 
-        if (cancelled_.load()) {
-            emit errorOccurred("用户已取消质检。");
-            return;
+            const int pct = 30 + (ri * 55) / std::max(totalRules, 1);
+            const auto& ruleCode = effectiveRules[static_cast<std::size_t>(ri)].code;
+            emit progressChanged(pct, QString::fromUtf8(
+                ("执行规则 " + std::to_string(ri + 1) + "/" + std::to_string(totalRules) + "：" + ruleCode).c_str()));
+
+            std::vector<RuleDefinition> singleRule{effectiveRules[static_cast<std::size_t>(ri)]};
+            auto ruleIssues = engine.check(inputPath_, singleRule);
+            report.issues.insert(report.issues.end(), ruleIssues.begin(), ruleIssues.end());
         }
+
+        if (cancelled_.load()) { emit cancelled(); return; }
 
         emit progressChanged(90, QString::fromUtf8("规则检查完成，生成统计报告..."));
 
-        report.statistics = ResultStatistics::fromIssues(static_cast<int>(effectiveRules.size()), report.issues);
+        report.statistics = ResultStatistics::fromIssues(totalRules, report.issues);
         report.task.complete();
-        report.logs.push_back("质检完成，发现问题 " + std::to_string(report.issues.size()) + " 个");
+
+        const auto endTime = std::chrono::steady_clock::now();
+        const double elapsed = std::chrono::duration<double>(endTime - startTime).count();
+        report.logs.push_back("质检完成，发现问题 " + std::to_string(report.issues.size()) + " 个，耗时 " + formatElapsed(elapsed));
         TaskHistoryStore{}.append(report);
 
         emit progressChanged(100, QString::fromUtf8("质检完成。"));
